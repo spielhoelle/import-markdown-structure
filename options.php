@@ -9,6 +9,23 @@ Author URI: https://tmy.io
 */
 
 // Wp v4.7.1 and higher
+require_once 'alt_autoload.php';
+$parser = new \Smalot\PdfParser\Parser();
+
+include(plugin_dir_path(__FILE__) . 'class.pdf2text.php');
+$pdf2text = new PDF2Text();
+// $a = filesize('/var/www/html/wp-content/uploads/2021/11/Emotional-Design-Why-We-Love-or-Hate-Everyday-Things-Donald-Norman.pdf');
+// echo '<pre>$a';
+// var_dump($a);
+// echo '</pre>';
+
+// $pdf    = $parser->parseFile('/var/www/html/wp-content/uploads/2021/11/Emotional-Design-Why-We-Love-or-Hate-Everyday-Things-Donald-Norman.pdf');
+// $pages  = $pdf->getPages();
+// echo '<pre>$pages';
+// var_dump(array_slice($pages, 2));
+// echo '</pre>';
+// var_dump(PDFParser);
+
 add_filter('wp_check_filetype_and_ext', function ($data, $file, $filename, $mimes) {
     $filetype = wp_check_filetype($filename, $mimes);
     return [
@@ -54,6 +71,14 @@ function tmy_markdown_init()
         <input type='file' id='tmy_markdown_upload_pdf' name='tmy_markdown_upload_pdf'></input>
         <?php submit_button('Upload') ?>
     </form>
+    <form method="post" enctype="multipart/form-data">
+        <input type="hidden" name="parse" value="true" />
+        <?php submit_button('Parse dropbox links') ?>
+    </form>
+    <form method="post" enctype="multipart/form-data">
+        <input type="hidden" name="get_summary" value="true" />
+        <?php submit_button('Fetch content from PDFs') ?>
+    </form>
 <?php
 }
 
@@ -74,9 +99,136 @@ function tmy_markdown_handle_post()
             test_convert($uploaded);
             echo "File upload, import of category structure and post-creation successful!";
         }
+    } else if ($_POST && $_POST['get_summary']) {
+        
+    } else if ($_POST && $_POST['parse']) {
+        global $pagenow;
+        $allposts = get_posts(array('post_type' => 'archive', 'numberposts' => -1));
+        $allattachments = get_posts(array('post_type' => 'attachment', 'numberposts' => -1));
+        $i = 0;
+
+        foreach ($allattachments as $eachattachment) {
+            if ($eachattachment->post_title = "Storytelling_in_Design") {
+                wp_delete_attachment($eachattachment->ID);
+            }
+        }
+
+        foreach ($allposts as $eachpost) {
+            var_dump($eachpost->post_title);
+            if($eachpost->post_title !== "2nd Connected Learning Summit Orange County") {
+                var_dump("sdasdfs");
+                continue;
+            }
+            $post_content_links = wp_extract_urls($eachpost->post_content);
+            echo '<pre>$post_content_links';
+            var_dump($post_content_links);
+            echo '</pre>';
+            if (count($post_content_links) > 0) {
+                foreach ($post_content_links as $post_content_link) {
+                    if ($i < 10) {
+                        $filename = basename($post_content_link);
+                        if (!post_exists($filename)) {
+                            $query = parse_url($post_content_link, PHP_URL_QUERY);
+                            if ($query) {
+                                $post_content_link .= '&raw=1';
+                            } else {
+                                $post_content_link .= '?raw=1';
+                            }
+                            $contents = file_get_contents($post_content_link);
+                            global $pagenow;
+                            $filename = preg_replace('/\?.*/', '', $filename);
+                            $post_id = $eachpost->ID;
+                            $filetype = wp_check_filetype($filename, null);
+                            $wp_upload_dir = wp_upload_dir();
+                            if (wp_mkdir_p($wp_upload_dir['path'])) {
+                                $file = $wp_upload_dir['path'] . '/' . $filename;
+                            } else {
+                                $file = $wp_upload_dir['basedir'] . '/' . $filename;
+                            }
+                            $title = preg_replace('/\.[^.]+$/', '', $filename);
+                            if (!file_exists($file)) {
+                                file_put_contents($file, $contents);
+                            }
+                           
+                            // global $parser;
+                            // echo '<pre>$file';
+                            // var_dump($file);
+                            // echo '</pre>';
+                            // $pdf    = $parser->parseFile($file);
+                            // $pages  = $pdf->getPages();
+                            // echo '<pre>$pages';
+                            // var_dump(array_slice( $pages, 2 ));
+                            // echo '</pre>';
+                            // var_dump($pdf2text->output()); 
+                            global $pdf2text;
+                            $pdf2text->setFilename($file);
+                            $pdf2text->decodePDF();
+                            $result = $pdf2text->output();
+                            if ($result) {
+                                echo '<pre>$result';
+                                var_dump($result);
+                                echo '</pre>';
+                                $args = array(
+                                    'headers' => array(
+                                        'Content-Type' => 'application/json',
+                                        'Authorization' => 'Bearer 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'
+                                    ),
+                                    "body" => json_encode(array(
+                                        "prompt" => $result,
+                                        "temperature" => 0.3,
+                                        "max_tokens" => 64,
+                                        "top_p" => 1,
+                                        "frequency_penalty" => 0,
+                                        "presence_penalty" => 0,
+                                        "stop" => ["\n"]
+                                    ))
+                                );
+                                $response = wp_remote_post('https://api.openai.com/v1/engines/davinci/completions', $args);
+                                $body     = wp_remote_retrieve_body($response);
+                                $json    = json_decode($body);
+                                echo '<pre>$body';
+                                var_dump($json);
+                                echo '</pre>';
+                            }
+                            // foreach (array_splice($pages, 2) as $page) {
+                            //     $result .= "<!-- wp:paragraph -->\n\r<p>" . $page->getText() . "</p>\n\r<!-- /wp:paragraph -->";
+                            // }
+                            echo '<pre>$title';
+                            var_dump($title);
+                            echo '</pre>';
+                            $attachment = array(
+                                'guid'           => $wp_upload_dir['url'] . '/' . $filename,
+                                'post_mime_type' => $filetype['type'],
+                                'post_title'     => $title,
+                                'post_content'   => $result,
+                                'post_status'    => 'inherit',
+                                'post_excerpt'   => $post_content_link,
+                            );
+                            $attachment_id = wp_insert_attachment($attachment, $wp_upload_dir['url'] . '/' . $filename, $post_id);
+                            require_once(ABSPATH . 'wp-admin/includes/image.php');
+                            $attach_data = wp_generate_attachment_metadata($attachment_id, $wp_upload_dir['url'] . '/' . $filename);
+                            wp_update_attachment_metadata($attachment_id, $attach_data);
+                            $i++;
+                        }
+                    }
+                }
+            }
+        }
     }
 }
-
+add_action('add_meta_boxes', function () {
+    add_meta_box('att_thumb_display', 'Attachmed images', function ($post) {
+        $args = array(
+            'post_type' => 'attachment',
+            'post_parent' => $post->ID
+        );
+        echo '<ul>';
+        foreach (get_posts($args) as $image) {
+            echo "<a href='" . $image->guid . "'>" . $image->post_title . "</a>";
+        }
+        echo '</ul>';
+    }, 'archive');
+});
 /*
 * Creating a function to create our CPT
 */
@@ -197,11 +349,11 @@ function test_convert($id)
         preg_match_all("/\[.*\]/", substr($file_array[$i], 2), $matches);
         preg_match_all("/\(.*\)/", substr($file_array[$i], 2), $matches2);
         if (strpos($file_array[$i], "#") === 0 && $file_array[$i][1] !== "#") {
-            $id = wp_insert_term($matches[0] ? preg_replace('/\*\*(.*)\*\*/', "$1", substr($matches[0][0], 1, -1)) : substr($file_array[$i], 1), "archive-category", array( 'description' => substr($matches2[0][0], 1, -1), 'parent' => 0));
+            $id = wp_insert_term($matches[0] ? preg_replace('/\*\*(.*)\*\*/', "$1", substr($matches[0][0], 1, -1)) : substr($file_array[$i], 1), "archive-category", array('description' => $matches2[0] ? substr($matches2[0][0], 1, -1) : substr($file_array[$i], 1), 'parent' => 0));
         } else if ($file_array[$i][0] === "#" && $file_array[$i][1] === "#" && $file_array[$i][2] !== "#") {
-            $id_sub = wp_insert_term($matches[0] ? preg_replace('/\*\*(.*)\*\*/', "$1", substr($matches[0][0], 1, -1)) : substr($file_array[$i], 2), "archive-category", array( 'description' => substr($matches2[0][0], 1, -1), 'parent' => $id['term_id']));
+            $id_sub = wp_insert_term($matches[0] ? preg_replace('/\*\*(.*)\*\*/', "$1", substr($matches[0][0], 1, -1)) : substr($file_array[$i], 2), "archive-category", array('description' => $matches2[0] ? substr($matches2[0][0], 1, -1) : substr($file_array[$i], 2), 'parent' => $id['term_id']));
         } else if ($file_array[$i][0] === "#" && $file_array[$i][1] === "#" && $file_array[$i][2] === "#") {
-            $id_sub_sub = wp_insert_term($matches[0] ? preg_replace('/\*\*(.*)\*\*/', "$1", substr($matches[0][0], 1, -1)) : substr($file_array[$i], 3), "archive-category", array( 'description' => substr($matches2[0][0], 1, -1), 'parent' => $id_sub['term_id']));
+            $id_sub_sub = wp_insert_term($matches[0] ? preg_replace('/\*\*(.*)\*\*/', "$1", substr($matches[0][0], 1, -1)) : substr($file_array[$i], 3), "archive-category", array('description' => $matches2[0] ? substr($matches2[0][0], 1, -1) : substr($file_array[$i], 3), 'parent' => $id_sub['term_id']));
         } else {
             if ($identSize === 0) {
                 $my_post = array(
