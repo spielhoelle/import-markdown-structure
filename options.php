@@ -7,13 +7,10 @@ Version: 1
 Author: Thomas Kuhnert
 Author URI: https://tmy.io
 */
-
-// Wp v4.7.1 and higher
-require_once 'alt_autoload.php';
-$parser = new \Smalot\PdfParser\Parser();
+include 'vendor/autoload.php';
 
 include(plugin_dir_path(__FILE__) . 'class.pdf2text.php');
-$pdf2text = new PDF2Text();
+// $pdf2text = new PDF2Text();
 // $a = filesize('/var/www/html/wp-content/uploads/2021/11/Emotional-Design-Why-We-Love-or-Hate-Everyday-Things-Donald-Norman.pdf');
 // echo '<pre>$a';
 // var_dump($a);
@@ -72,150 +69,172 @@ function tmy_markdown_init()
         <?php submit_button('Upload') ?>
     </form>
     <form method="post" enctype="multipart/form-data">
-        <input type="hidden" name="parse" value="true" />
+        <input type="hidden" name="download_files_from_content_links" value="true" />
         <?php submit_button('Parse dropbox links') ?>
+        Out of permormance reasons always just in a 10 batch followed by the next manual invokation
     </form>
     <form method="post" enctype="multipart/form-data">
-        <input type="hidden" name="get_summary" value="true" />
-        <?php submit_button('Fetch content from PDFs') ?>
+        <input type="hidden" name="get_pdf_textcontent" value="true" />
+        <?php submit_button('Bulk analyse all PDFs') ?>
     </form>
 <?php
 }
-
+function attachment_url_to_path($url)
+{
+    $parsed_url = parse_url($url);
+    if (empty($parsed_url['path'])) return false;
+    $file = ABSPATH . ltrim($parsed_url['path'], '/');
+    if (file_exists($file)) return $file;
+    return false;
+}
 function tmy_markdown_handle_post()
 {
     // First check if the file appears on the _FILES array
     if (isset($_FILES['tmy_markdown_upload_pdf'])) {
-        $pdf = $_FILES['tmy_markdown_upload_pdf'];
-
         // Use the wordpress function to upload
         // tmy_markdown_upload_pdf corresponds to the position in the $_FILES array
         // 0 means the content is not associated with any other posts
         $uploaded = media_handle_upload('tmy_markdown_upload_pdf', 0);
         // Error checking using WP functions
         if (is_wp_error($uploaded)) {
-            echo "Error uploading file: " . $uploaded->get_error_message();
+            echo "\n\rError uploading file: " . $uploaded->get_error_message();
         } else {
             test_convert($uploaded);
-            echo "File upload, import of category structure and post-creation successful!";
+            echo "\n\rFile upload, import of category structure and post-creation successful!";
         }
-    } else if ($_POST && $_POST['get_summary']) {
-        
-    } else if ($_POST && $_POST['parse']) {
-        global $pagenow;
+   
+    } else if ($_POST && isset( $_POST['download_files_from_content_links'] )) {
         $allposts = get_posts(array('post_type' => 'archive', 'numberposts' => -1));
-        $allattachments = get_posts(array('post_type' => 'attachment', 'numberposts' => -1));
         $i = 0;
-
-        foreach ($allattachments as $eachattachment) {
-            if ($eachattachment->post_title = "Storytelling_in_Design") {
-                wp_delete_attachment($eachattachment->ID);
-            }
-        }
-
         foreach ($allposts as $eachpost) {
-            var_dump($eachpost->post_title);
-            if($eachpost->post_title !== "2nd Connected Learning Summit Orange County") {
-                var_dump("sdasdfs");
-                continue;
-            }
             $post_content_links = wp_extract_urls($eachpost->post_content);
-            echo '<pre>$post_content_links';
-            var_dump($post_content_links);
-            echo '</pre>';
             if (count($post_content_links) > 0) {
                 foreach ($post_content_links as $post_content_link) {
-                    if ($i < 10) {
-                        $filename = basename($post_content_link);
-                        if (!post_exists($filename)) {
+                    $basename = basename($post_content_link);
+                    $filename = urldecode(preg_replace('/\?.*/', '', $basename));
+                    if (!post_exists($filename)) {
+                        if ($i < 5) {
+                            // echo "not existing";
+                            // echo '<pre>$post_content_links';
+                            // var_dump($post_content_links);
+                            // echo '</pre>';
                             $query = parse_url($post_content_link, PHP_URL_QUERY);
                             if ($query) {
                                 $post_content_link .= '&raw=1';
                             } else {
                                 $post_content_link .= '?raw=1';
                             }
-                            $contents = file_get_contents($post_content_link);
-                            global $pagenow;
-                            $filename = preg_replace('/\?.*/', '', $filename);
+                            $contents = file_get_contents($post_content_link, false, stream_context_create(['http' => ['ignore_errors' => true]]));
+                            // var_dump($http_response_header);
                             $post_id = $eachpost->ID;
                             $filetype = wp_check_filetype($filename, null);
                             $wp_upload_dir = wp_upload_dir();
-                            if (wp_mkdir_p($wp_upload_dir['path'])) {
-                                $file = $wp_upload_dir['path'] . '/' . $filename;
-                            } else {
-                                $file = $wp_upload_dir['basedir'] . '/' . $filename;
+
+                            $new_file_path = $wp_upload_dir['path'] . '/' . $filename;
+                            if (!file_exists($filename)) {
+                                file_put_contents($new_file_path, $contents);
                             }
-                            $title = preg_replace('/\.[^.]+$/', '', $filename);
-                            if (!file_exists($file)) {
-                                file_put_contents($file, $contents);
-                            }
-                           
-                            // global $parser;
-                            // echo '<pre>$file';
-                            // var_dump($file);
-                            // echo '</pre>';
-                            // $pdf    = $parser->parseFile($file);
-                            // $pages  = $pdf->getPages();
-                            // echo '<pre>$pages';
-                            // var_dump(array_slice( $pages, 2 ));
-                            // echo '</pre>';
-                            // var_dump($pdf2text->output()); 
-                            global $pdf2text;
-                            $pdf2text->setFilename($file);
-                            $pdf2text->decodePDF();
-                            $result = $pdf2text->output();
-                            if ($result) {
-                                echo '<pre>$result';
-                                var_dump($result);
-                                echo '</pre>';
-                                $args = array(
-                                    'headers' => array(
-                                        'Content-Type' => 'application/json',
-                                        'Authorization' => 'Bearer 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'
-                                    ),
-                                    "body" => json_encode(array(
-                                        "prompt" => $result,
-                                        "temperature" => 0.3,
-                                        "max_tokens" => 64,
-                                        "top_p" => 1,
-                                        "frequency_penalty" => 0,
-                                        "presence_penalty" => 0,
-                                        "stop" => ["\n"]
-                                    ))
-                                );
-                                $response = wp_remote_post('https://api.openai.com/v1/engines/davinci/completions', $args);
-                                $body     = wp_remote_retrieve_body($response);
-                                $json    = json_decode($body);
-                                echo '<pre>$body';
-                                var_dump($json);
-                                echo '</pre>';
-                            }
-                            // foreach (array_splice($pages, 2) as $page) {
-                            //     $result .= "<!-- wp:paragraph -->\n\r<p>" . $page->getText() . "</p>\n\r<!-- /wp:paragraph -->";
-                            // }
-                            echo '<pre>$title';
-                            var_dump($title);
-                            echo '</pre>';
                             $attachment = array(
-                                'guid'           => $wp_upload_dir['url'] . '/' . $filename,
+                                'guid'           => $new_file_path,
                                 'post_mime_type' => $filetype['type'],
-                                'post_title'     => $title,
-                                'post_content'   => $result,
+                                'post_title'     => $filename,
                                 'post_status'    => 'inherit',
+                                'post_content'   => "placeholder",
                                 'post_excerpt'   => $post_content_link,
                             );
-                            $attachment_id = wp_insert_attachment($attachment, $wp_upload_dir['url'] . '/' . $filename, $post_id);
+                            $attachment_id = wp_insert_attachment($attachment, $new_file_path, $post_id);
                             require_once(ABSPATH . 'wp-admin/includes/image.php');
-                            $attach_data = wp_generate_attachment_metadata($attachment_id, $wp_upload_dir['url'] . '/' . $filename);
+                            $attach_data = wp_generate_attachment_metadata($attachment_id, $new_file_path);
                             wp_update_attachment_metadata($attachment_id, $attach_data);
                             $i++;
                         }
+                    } else {
+                        // echo "\n\rPOST is already existing";
                     }
                 }
             }
         }
+    } else if ($_POST && $_POST['get_pdf_textcontent']) {
+        $post = get_post($_POST['get_pdf_textcontent']);
+        $file = get_attached_file($post->ID);
+
+        // Parse pdf file and build necessary objects.
+        $parser = new \Smalot\PdfParser\Parser();
+        $pdf    = $parser->parseFile($file);
+
+        $text_content = $pdf->getText();
+        // Retrieve all details from the pdf file.
+        // $details  = $pdf->getDetails();
+        // Loop over each property to extract values (string or array).
+        // $meta_accumulation = $file . "\n";
+        // foreach ($details as $property => $value) {
+        //     if (is_array($value)) {
+        //         $value = implode(', ', $value);
+        //     }
+        //     $meta_accumulation += $property . ' => ' . $value . "\n";
+        // }
+        // $details  = $pdf->getDetails();
+        // $meta = "Meta: \n\r";
+        // foreach ($details as $property => $value) {
+        //     if (is_array($value)) {
+        //         $value = implode(', ', $value);
+        //     }
+        //     $meta .= $property . ' => ' . $value . "\n";
+        // }
+        // $result = $meta . "\n\rTextcontent: \n\r" . str_replace("\t", '', $text_content);
+        $postid = $post->ID;
+        $result = str_replace("\t", '', $text_content);
+        $updated_post = array(
+            'ID' => $postid,
+            'post_content' => $result,
+            // 'post_excerpt' => "replaced by AI summary"
+        );
+        $err = wp_update_post($updated_post, true, true);
+        if (is_wp_error($err)) {
+            var_dump($err);
+            error_log(print_r($err, 1));
+        } else {
+            echo $result;
+        }
+    } else if ($_POST && $_POST['tmy_send_to_ai']) {
+        $post   = wp_get_attachment_caption($_POST['tmy_send_to_ai']);
+        var_dump($post);
+        $args = array(
+            'headers' => array(
+                'Content-Type' => 'application/json',
+                'Authorization' => 'Bearer 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'
+            ),
+            "body" => json_encode(array(
+                "prompt" => $result,
+                "temperature" => 0.3,
+                "max_tokens" => 64,
+                "top_p" => 1,
+                "frequency_penalty" => 0,
+                "presence_penalty" => 0,
+                "stop" => ["\n"]
+            ))
+        );
+        $response = wp_remote_post('https://api.openai.com/v1/engines/davinci/completions', $args);
+        $body     = wp_remote_retrieve_body($response);
+        $json    = json_decode($body);
+        // echo '<pre>$body';
+        // var_dump($json);
+        // echo '</pre>';
+        $i++;
+        $post_data = "";
+
+        foreach ($json->choices as $choice) {
+            $post_data .= print_r($choice->text) . "\n\r";
+        }
+        $data = array(
+            'ID' => $post->ID,
+            'post_excerpt' => print_r($post_data)
+        );
+        // var_dump('$data' . $data);
+        $res = wp_update_post($data, true);
+        echo print_r($post_data);
     }
-}
+};
 add_action('add_meta_boxes', function () {
     add_meta_box('att_thumb_display', 'Attachmed images', function ($post) {
         $args = array(
@@ -224,11 +243,65 @@ add_action('add_meta_boxes', function () {
         );
         echo '<ul>';
         foreach (get_posts($args) as $image) {
-            echo "<a href='" . $image->guid . "'>" . $image->post_title . "</a>";
+            echo "<a target='_blank' href='" . get_edit_post_link($image->ID) . "'>" . $image->post_title . "</a>";
         }
         echo '</ul>';
     }, 'archive');
 });
+
+
+add_action('add_meta_boxes', 'tmy_add_your_meta_box2');
+function tmy_add_your_meta_box2()
+{
+    global $post;
+    if($post->post_mime_type === "application/pdf"){
+        add_meta_box('tmy_markdown_upload_pdf', 'Save PDF content to Mediacaption', 'tmy_function_of_metabox', 'attachment', 'side', 'high');
+    }
+}
+function tmy_function_of_metabox()
+{
+?>
+    <form method="post" enctype="multipart/form-data">
+        <input type="submit" class="button button-primary button-large" value="Save PDF content to Mediacaption" id="get_pdf_textcontent" />
+        <input type="submit" class="button button-primary button-large" value="Sync with Open Ai and generate post excerpts" id="tmy_get_ai" />
+    </form>
+<?php }
+
+add_action('admin_head', 'my_action_javascript');
+function my_action_javascript()
+{
+    global $post;
+?>
+    <script type="text/javascript">
+        jQuery(document).ready(function($) {
+            $('#get_pdf_textcontent, #tmy_get_ai').click(function(e) {
+                // e.target.classList
+                e.preventDefault()
+                var data = {
+                    action: 'tmy_ajax_handler',
+                };
+                if (e.target.id === "get_pdf_textcontent") {
+                    data.get_pdf_textcontent = <? echo $post->ID ?>
+
+                } else {
+                    data.tmy_send_to_ai = <? echo $post->ID ?>
+                }
+                // since 2.8 ajaxurl is always defined in the admin header and points to admin-ajax.php
+                $.post(ajaxurl, data, function(response) {
+                    value = response;
+                    console.log(response);
+                    if (e.target.id === "get_pdf_textcontent") {
+                        document.getElementById("attachment_content").value = response;
+                    } else {
+                        document.getElementById("attachment_caption").value = response;
+                    }
+                });
+            });
+        });
+    </script>
+<?php
+}
+add_action('wp_ajax_tmy_ajax_handler', 'tmy_markdown_handle_post');
 /*
 * Creating a function to create our CPT
 */
