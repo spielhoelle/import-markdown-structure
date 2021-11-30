@@ -23,6 +23,31 @@ include(plugin_dir_path(__FILE__) . 'class.pdf2text.php');
 // echo '</pre>';
 // var_dump(PDFParser);
 
+// global $pagenow;
+// echo '<pre>26 $pagenow';
+// var_dump($pagenow);
+// echo '</pre>';
+// if($pagenow === 'options-general.php'){
+//     $allposts = get_posts(array('post_type' => 'archive', 'numberposts' => -1));
+//     foreach ($allposts as $eachpost) {
+//         wp_delete_post($eachpost->ID, true);
+//     }
+//     $attachments = get_posts(array('post_type' => 'attachment', 'numberposts' => -1));
+//     foreach ($attachments as $eachpost) {
+//         // if ($eachpost->post_title !== "MarkDown export mindnode") {
+//             wp_delete_post($eachpost->ID, true);
+//         // }
+//     }
+//     $args = array(
+//         "hide_empty" => 0,
+//         "taxonomy"       => "archive-category"
+//     );
+//     $types = get_terms($args);
+
+//     foreach ($types as $type) {
+//         wp_delete_term($type->term_id, 'archive-category');
+//     }
+// }
 add_filter('wp_check_filetype_and_ext', function ($data, $file, $filename, $mimes) {
     $filetype = wp_check_filetype($filename, $mimes);
     return [
@@ -154,7 +179,7 @@ function tmy_markdown_handle_post()
                 }
             }
         }
-    } else if ($_POST && $_POST['get_pdf_textcontent']) {
+    } else if ($_POST && isset( $_POST['get_pdf_textcontent'] )) {
         $post = get_post($_POST['get_pdf_textcontent']);
         $file = get_attached_file($post->ID);
 
@@ -196,16 +221,17 @@ function tmy_markdown_handle_post()
         } else {
             echo $result;
         }
-    } else if ($_POST && $_POST['tmy_send_to_ai']) {
-        $post   = wp_get_attachment_caption($_POST['tmy_send_to_ai']);
-        var_dump($post);
+    } else if ($_POST && isset( $_POST['tmy_send_to_ai'] )) {
+        $post = get_post($_POST['tmy_send_to_ai']);
+        $shortened = substr($post->post_content, 0, 1900);
+        $trimmed = trim(preg_replace('/\s\s+/', ' ', $shortened));
         $args = array(
             'headers' => array(
                 'Content-Type' => 'application/json',
                 'Authorization' => 'Bearer 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'
             ),
             "body" => json_encode(array(
-                "prompt" => $result,
+                "prompt" => $trimmed,
                 "temperature" => 0.3,
                 "max_tokens" => 64,
                 "top_p" => 1,
@@ -215,24 +241,26 @@ function tmy_markdown_handle_post()
             ))
         );
         $response = wp_remote_post('https://api.openai.com/v1/engines/davinci/completions', $args);
-        $body     = wp_remote_retrieve_body($response);
-        $json    = json_decode($body);
-        // echo '<pre>$body';
-        // var_dump($json);
-        // echo '</pre>';
-        $i++;
+        if (is_wp_error($response)) {
+            $error_message = $response->get_error_message();
+            echo "Something went wrong: $error_message";
+            die;
+        }
+        $body = wp_remote_retrieve_body($response);
+        $json = json_decode($body);
         $post_data = "";
 
         foreach ($json->choices as $choice) {
-            $post_data .= print_r($choice->text) . "\n\r";
+            $post_data .= $choice->text . "\n\r";
         }
         $data = array(
             'ID' => $post->ID,
-            'post_excerpt' => print_r($post_data)
+            'post_excerpt' => $post_data
         );
         // var_dump('$data' . $data);
         $res = wp_update_post($data, true);
-        echo print_r($post_data);
+        echo $post_data;
+        die;
     }
 };
 add_action('add_meta_boxes', function () {
