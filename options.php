@@ -76,32 +76,52 @@ function fix_svg()
 add_action('admin_head', 'fix_svg');
 
 add_action('admin_menu', 'tmy_markdown_plugin_setup_menu');
+if (is_admin()) {
+    add_action('admin_init', 'tmy_markdown_plugin_settings');
+}
+function tmy_markdown_plugin_settings()
+{
+    register_setting('tmy-option-group', 'tmy_open_ai_api_key');
+}
 function tmy_markdown_plugin_setup_menu()
 {
     add_menu_page('Markdown upload page', 'Markdown upload', 'manage_options', 'tmy_markdown-plugin', 'tmy_markdown_init');
 }
-
 function tmy_markdown_init()
 {
     tmy_markdown_handle_post();
 
 ?>
     <h1>Import markdown file to archive post_type hierarchy</h1>
-    <h2>Upload a File!</h2>
+
     <!-- Form to handle the upload - The enctype value here is very important -->
+    <form method="post" action="options.php">
+        <h2>Set OpenAI API key</h2>
+        <?php settings_fields('tmy-option-group'); ?>
+        <?php do_settings_sections('tmy-option-group'); ?>
+        <input type='text' class="regular-text" id="first_field_id" name="tmy_open_ai_api_key" value="<?php echo get_option('tmy_open_ai_api_key'); ?>">
+        <?php submit_button(); ?>
+    </form>
     <form method="post" enctype="multipart/form-data">
+        <h2>Upload markdown file</h2>
         <input type='file' id='tmy_markdown_upload_pdf' name='tmy_markdown_upload_pdf'></input>
         <?php submit_button('Upload') ?>
     </form>
     <form method="post" enctype="multipart/form-data">
+        <h2>Parse dropboxlinks PDFs and attach to posts</h2>
         <input type="hidden" name="download_files_from_content_links" value="true" />
-        <?php submit_button('Parse dropbox links') ?>
+        <?php submit_button('Parse') ?>
         Out of permormance reasons always just in a 10 batch followed by the next manual invokation
     </form>
-    <form method="post" enctype="multipart/form-data">
-        <input type="hidden" name="get_pdf_textcontent" value="true" />
-        <?php submit_button('Bulk analyse all PDFs') ?>
-    </form>
+    <!-- <form method="post" enctype="multipart/form-data">
+        <h2></h2>
+        <?php if (empty(get_option('tmy_open_ai_api_key'))) : ?>
+            First set API key to interact with OpenAI
+        <?php else : ?>
+            <input type="hidden" name="get_pdf_textcontent" value="true" />
+            <?php submit_button('Bulk analyse all PDFs') ?>
+        <?php endif; ?>
+    </form> -->
 <?php
 }
 function attachment_url_to_path($url)
@@ -127,8 +147,7 @@ function tmy_markdown_handle_post()
             test_convert($uploaded);
             echo "\n\rFile upload, import of category structure and post-creation successful!";
         }
-   
-    } else if ($_POST && isset( $_POST['download_files_from_content_links'] )) {
+    } else if ($_POST && isset($_POST['download_files_from_content_links'])) {
         $allposts = get_posts(array('post_type' => 'archive', 'numberposts' => -1));
         $i = 0;
         foreach ($allposts as $eachpost) {
@@ -179,7 +198,7 @@ function tmy_markdown_handle_post()
                 }
             }
         }
-    } else if ($_POST && isset( $_POST['get_pdf_textcontent'] )) {
+    } else if ($_POST && isset($_POST['get_pdf_textcontent'])) {
         $post = get_post($_POST['get_pdf_textcontent']);
         $file = get_attached_file($post->ID);
 
@@ -221,14 +240,14 @@ function tmy_markdown_handle_post()
         } else {
             echo $result;
         }
-    } else if ($_POST && isset( $_POST['tmy_send_to_ai'] )) {
+    } else if ($_POST && isset($_POST['tmy_send_to_ai'])) {
         $post = get_post($_POST['tmy_send_to_ai']);
         $shortened = substr($post->post_content, 0, 1900);
         $trimmed = trim(preg_replace('/\s\s+/', ' ', $shortened));
         $args = array(
             'headers' => array(
                 'Content-Type' => 'application/json',
-                'Authorization' => 'Bearer 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'
+                'Authorization' => 'Bearer '. get_option('tmy_open_ai_api_key'),
             ),
             "body" => json_encode(array(
                 "prompt" => $trimmed,
@@ -289,10 +308,14 @@ function tmy_add_your_meta_box2()
 function tmy_function_of_metabox()
 {
 ?>
-    <form method="post" enctype="multipart/form-data">
-        <input type="submit" class="button button-primary button-large" value="Save PDF content to Mediacaption" id="get_pdf_textcontent" />
-        <input type="submit" class="button button-primary button-large" value="Sync with Open Ai and generate post excerpts" id="tmy_get_ai" />
-    </form>
+ <?php if (empty(get_option('tmy_open_ai_api_key'))) : ?>
+    <?php echo "Please set your OpenAI API key in the <a href='/wp-admin/admin.php?page=tmy_markdown-plugin'>settings page</a>"; ?>
+    <?php else : ?>
+        <form method="post" enctype="multipart/form-data">
+            <input type="submit" class="button button-primary button-large" value="Save PDF content to Mediacaption" id="get_pdf_textcontent" />
+            <input type="submit" class="button button-primary button-large" value="Sync with Open Ai and generate post excerpts" id="tmy_get_ai" />
+        </form>
+    <?php endif; ?>
 <?php }
 
 add_action('admin_head', 'my_action_javascript');
