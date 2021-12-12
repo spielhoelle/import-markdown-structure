@@ -8,7 +8,8 @@ Author: Thomas Kuhnert
 Author URI: https://tmy.io
 */
 include 'vendor/autoload.php';
-
+@ini_set('display_errors', 1);
+@ini_set('max_execution_time', '300'); //300 seconds = 5 minutes
 include(plugin_dir_path(__FILE__) . 'class.pdf2text.php');
 // $pdf2text = new PDF2Text();
 // $a = filesize('/var/www/html/wp-content/uploads/2021/11/Emotional-Design-Why-We-Love-or-Hate-Everyday-Things-Donald-Norman.pdf');
@@ -247,7 +248,7 @@ function tmy_markdown_handle_post()
         $args = array(
             'headers' => array(
                 'Content-Type' => 'application/json',
-                'Authorization' => 'Bearer '. get_option('tmy_open_ai_api_key'),
+                'Authorization' => 'Bearer ' . get_option('tmy_open_ai_api_key'),
             ),
             "body" => json_encode(array(
                 "prompt" => $trimmed,
@@ -301,19 +302,21 @@ add_action('add_meta_boxes', 'tmy_add_your_meta_box2');
 function tmy_add_your_meta_box2()
 {
     global $post;
-    if($post->post_mime_type === "application/pdf"){
+    if ($post->post_mime_type === "application/pdf") {
         add_meta_box('tmy_markdown_upload_pdf', 'Save PDF content to Mediacaption', 'tmy_function_of_metabox', 'attachment', 'side', 'high');
     }
 }
 function tmy_function_of_metabox()
 {
 ?>
- <?php if (empty(get_option('tmy_open_ai_api_key'))) : ?>
-    <?php echo "Please set your OpenAI API key in the <a href='/wp-admin/admin.php?page=tmy_markdown-plugin'>settings page</a>"; ?>
+    <?php if (empty(get_option('tmy_open_ai_api_key'))) : ?>
+        <?php echo "Please set your OpenAI API key in the <a href='/wp-admin/admin.php?page=tmy_markdown-plugin'>settings page</a>"; ?>
     <?php else : ?>
         <form method="post" enctype="multipart/form-data">
-            <input type="submit" class="button button-primary button-large" value="Save PDF content to Mediacaption" id="get_pdf_textcontent" />
-            <input type="submit" class="button button-primary button-large" value="Sync with Open Ai and generate post excerpts" id="tmy_get_ai" />
+            <button type="submit" class="button button-primary button-large" value="" id="get_pdf_textcontent">Save PDF content to Mediacaption<span class="spinner hidden-field"></span></button>
+
+            <button type="submit" class="button button-primary button-large" value="" id="tmy_get_ai">Sync with Open Ai and generate post excerpts<span class="spinner hidden-field"></span></button>
+
         </form>
     <?php endif; ?>
 <?php }
@@ -326,8 +329,11 @@ function my_action_javascript()
     <script type="text/javascript">
         jQuery(document).ready(function($) {
             $('#get_pdf_textcontent, #tmy_get_ai').click(function(e) {
-                // e.target.classList
+                console.log(e)
                 e.preventDefault()
+                e.target.disabled = true
+                e.target.querySelector(".spinner").classList.add("is-active");
+                e.target.querySelector(".spinner").classList.remove("hidden-field");
                 var data = {
                     action: 'tmy_ajax_handler',
                 };
@@ -339,12 +345,25 @@ function my_action_javascript()
                 }
                 // since 2.8 ajaxurl is always defined in the admin header and points to admin-ajax.php
                 $.post(ajaxurl, data, function(response) {
-                    value = response;
-                    console.log(response);
-                    if (e.target.id === "get_pdf_textcontent") {
-                        document.getElementById("attachment_content").value = response;
+                    if (response.includes("There has been a critical error on this website")) {
+                        var error = document.createElement("div");
+                        var errorParagraph = document.createElement("p");
+                        errorParagraph.innerHTML = response;
+                        error.classList.add("error");
+                        error.classList.add("notice");
+                        error.appendChild(errorParagraph);
+                        document.querySelector(".wrap").prepend(error);
                     } else {
-                        document.getElementById("attachment_caption").value = response;
+                        value = response;
+                        console.log(response);
+                        e.target.disabled = false
+                        e.target.querySelector(".spinner").classList.remove("is-active");
+                        e.target.querySelector(".spinner").classList.add("hidden-field");
+                        if (e.target.id === "get_pdf_textcontent") {
+                            document.getElementById("attachment_content").value = response;
+                        } else {
+                            document.getElementById("attachment_caption").value = response;
+                        }
                     }
                 });
             });
