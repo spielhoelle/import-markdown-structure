@@ -332,10 +332,10 @@ function my_action_javascript()
                     action: 'tmy_ajax_handler',
                 };
                 if (e.target.id === "get_pdf_textcontent") {
-                    data.get_pdf_textcontent = <? echo $post->ID ?>
+                    data.get_pdf_textcontent = <?php echo $post->ID ?>
 
                 } else {
-                    data.tmy_send_to_ai = <? echo $post->ID ?>
+                    data.tmy_send_to_ai = <?php echo $post->ID ?>
                 }
                 // since 2.8 ajaxurl is always defined in the admin header and points to admin-ajax.php
                 $.post(ajaxurl, data, function(response) {
