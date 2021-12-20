@@ -28,27 +28,28 @@ include(plugin_dir_path(__FILE__) . 'class.pdf2text.php');
 // echo '<pre>26 $pagenow';
 // var_dump($pagenow);
 // echo '</pre>';
-// if($pagenow === 'options-general.php'){
-//     $allposts = get_posts(array('post_type' => 'archive', 'numberposts' => -1));
-//     foreach ($allposts as $eachpost) {
-//         wp_delete_post($eachpost->ID, true);
-//     }
-//     $attachments = get_posts(array('post_type' => 'attachment', 'numberposts' => -1));
-//     foreach ($attachments as $eachpost) {
-//         // if ($eachpost->post_title !== "MarkDown export mindnode") {
-//             wp_delete_post($eachpost->ID, true);
-//         // }
-//     }
-//     $args = array(
-//         "hide_empty" => 0,
-//         "taxonomy"       => "archive-category"
-//     );
-//     $types = get_terms($args);
+$max_file_download = 5;
+if ($pagenow === 'options-general.php') {
+    $allposts = get_posts(array('post_type' => 'archive', 'numberposts' => -1));
+    foreach ($allposts as $eachpost) {
+        wp_delete_post($eachpost->ID, true);
+    }
+    $attachments = get_posts(array('post_type' => 'attachment', 'numberposts' => -1));
+    foreach ($attachments as $eachpost) {
+        // if ($eachpost->post_title !== "MarkDown export mindnode") {
+        wp_delete_post($eachpost->ID, true);
+        // }
+    }
+    $args = array(
+        "hide_empty" => 0,
+        "taxonomy"       => "archive-category"
+    );
+    $types = get_terms($args);
 
-//     foreach ($types as $type) {
-//         wp_delete_term($type->term_id, 'archive-category');
-//     }
-// }
+    foreach ($types as $type) {
+        wp_delete_term($type->term_id, 'archive-category');
+    }
+}
 add_filter('wp_check_filetype_and_ext', function ($data, $file, $filename, $mimes) {
     $filetype = wp_check_filetype($filename, $mimes);
     return [
@@ -72,6 +73,9 @@ function fix_svg()
              width: 100% !important;
              height: auto !important;
         }
+        .mb-3 {
+            margin-bottom: .3em !important;
+        }
         </style>';
 }
 add_action('admin_head', 'fix_svg');
@@ -91,7 +95,7 @@ function tmy_markdown_plugin_setup_menu()
 function tmy_markdown_init()
 {
     tmy_markdown_handle_post();
-
+    global $max_file_download;
 ?>
     <h1>Import markdown file to archive post_type hierarchy</h1>
 
@@ -112,7 +116,7 @@ function tmy_markdown_init()
         <h2>Parse dropboxlinks PDFs and attach to posts</h2>
         <input type="hidden" name="download_files_from_content_links" value="true" />
         <?php submit_button('Parse') ?>
-        Out of permormance reasons always just in a 10 batch followed by the next manual invokation
+        Out of permormance reasons always just in a <?php echo $max_file_download ?> batch followed by the next manual invokation
     </form>
     <!-- <form method="post" enctype="multipart/form-data">
         <h2></h2>
@@ -135,6 +139,7 @@ function attachment_url_to_path($url)
 }
 function tmy_markdown_handle_post()
 {
+    global $max_file_download;
     // First check if the file appears on the _FILES array
     if (isset($_FILES['tmy_markdown_upload_pdf'])) {
         // Use the wordpress function to upload
@@ -157,18 +162,23 @@ function tmy_markdown_handle_post()
                 foreach ($post_content_links as $post_content_link) {
                     $basename = basename($post_content_link);
                     $filename = urldecode(preg_replace('/\?.*/', '', $basename));
-                    if (!post_exists($filename)) {
-                        if ($i < 5) {
+                    $file_parts = pathinfo($filename);
+                    if (!post_exists($filename)
+                        // && isset($file_parts["extension"]) && $file_parts['extension'] === 'docx'
+                    ) {
+                        if ($i < $max_file_download) {
                             // echo "not existing";
                             // echo '<pre>$post_content_links';
                             // var_dump($post_content_links);
                             // echo '</pre>';
                             $query = parse_url($post_content_link, PHP_URL_QUERY);
                             if ($query) {
-                                $post_content_link .= '&raw=1';
+                                $post_content_link .= '&raw=1&dl=1';
                             } else {
-                                $post_content_link .= '?raw=1';
+                                $post_content_link .= '?raw=1&dl=1';
                             }
+                            $post_content_link = str_replace('dl=0', '', $post_content_link);
+                            var_dump('$post_content_lin' . $post_content_link);
                             $contents = file_get_contents($post_content_link, false, stream_context_create(['http' => ['ignore_errors' => true]]));
                             // var_dump($http_response_header);
                             $post_id = $eachpost->ID;
@@ -201,34 +211,52 @@ function tmy_markdown_handle_post()
         }
     } else if ($_POST && isset($_POST['get_pdf_textcontent'])) {
         $post = get_post($_POST['get_pdf_textcontent']);
-        $file = get_attached_file($post->ID);
-
+        $filepath = get_attached_file($post->ID);
+        $text_content = "";
         // Parse pdf file and build necessary objects.
-        $parser = new \Smalot\PdfParser\Parser();
-        $pdf    = $parser->parseFile($file);
+        $file_parts = pathinfo($filepath);
+        if ($file_parts['extension'] === 'pdf') {
+            $parser = new \Smalot\PdfParser\Parser();
+            $pdf    = $parser->parseFile($filepath);
+            $text_content = $pdf->getText();
+            // Retrieve all details from the pdf file.
+            // $details  = $pdf->getDetails();
+            // Loop over each property to extract values (string or array).
+            // $meta_accumulation = $filepath . "\n";
+            // foreach ($details as $property => $value) {
+            //     if (is_array($value)) {
+            //         $value = implode(', ', $value);
+            //     }
+            //     $meta_accumulation += $property . ' => ' . $value . "\n";
+            // }
+            // $details  = $pdf->getDetails();
+            // $meta = "Meta: \n\r";
+            // foreach ($details as $property => $value) {
+            //     if (is_array($value)) {
+            //         $value = implode(', ', $value);
+            //     }
+            //     $meta .= $property . ' => ' . $value . "\n";
+            // }
+            // $result = $meta . "\n\rTextcontent: \n\r" . str_replace("\t", '', $text_content);
 
-        $text_content = $pdf->getText();
-        // Retrieve all details from the pdf file.
-        // $details  = $pdf->getDetails();
-        // Loop over each property to extract values (string or array).
-        // $meta_accumulation = $file . "\n";
-        // foreach ($details as $property => $value) {
-        //     if (is_array($value)) {
-        //         $value = implode(', ', $value);
-        //     }
-        //     $meta_accumulation += $property . ' => ' . $value . "\n";
-        // }
-        // $details  = $pdf->getDetails();
-        // $meta = "Meta: \n\r";
-        // foreach ($details as $property => $value) {
-        //     if (is_array($value)) {
-        //         $value = implode(', ', $value);
-        //     }
-        //     $meta .= $property . ' => ' . $value . "\n";
-        // }
-        // $result = $meta . "\n\rTextcontent: \n\r" . str_replace("\t", '', $text_content);
+        }
+        if ($file_parts['extension'] === 'docx') {
+            $content = '';
+            $zip = zip_open($filepath);
+            if (!$zip || is_numeric($zip)) return false;
+            while ($zip_entry = zip_read($zip)) {
+                if (zip_entry_open($zip, $zip_entry) == FALSE) continue;
+                if (zip_entry_name($zip_entry) != "word/document.xml") continue;
+                $content .= zip_entry_read($zip_entry, zip_entry_filesize($zip_entry));
+                zip_entry_close($zip_entry);
+            } // end while
+            zip_close($zip);
+            $content = str_replace('</w:r></w:p></w:tc><w:tc>', " ", $content);
+            $content = str_replace('</w:r></w:p>', "\r\n", $content);
+            $text_content = strip_tags($content);
+        }
         $postid = $post->ID;
-        $result = str_replace("\t", '', $text_content);
+        $result = str_replace("\t", '', trim($text_content));
         $updated_post = array(
             'ID' => $postid,
             'post_content' => $result,
@@ -240,6 +268,7 @@ function tmy_markdown_handle_post()
             error_log(print_r($err, 1));
         } else {
             echo $result;
+            die;
         }
     } else if ($_POST && isset($_POST['tmy_send_to_ai'])) {
         $post = get_post($_POST['tmy_send_to_ai']);
@@ -252,7 +281,7 @@ function tmy_markdown_handle_post()
             ),
             "body" => json_encode(array(
                 "prompt" => $trimmed,
-                "temperature" => 0.3,
+                "temperature" => 0,
                 "max_tokens" => 64,
                 "top_p" => 1,
                 "frequency_penalty" => 0,
@@ -302,7 +331,7 @@ add_action('add_meta_boxes', 'tmy_add_your_meta_box2');
 function tmy_add_your_meta_box2()
 {
     global $post;
-    if ($post->post_mime_type === "application/pdf") {
+    if ($post->post_mime_type === "application/pdf" || $post->post_mime_type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
         add_meta_box('tmy_markdown_upload_pdf', 'Save PDF content to Mediacaption', 'tmy_function_of_metabox', 'attachment', 'side', 'high');
     }
 }
@@ -313,63 +342,62 @@ function tmy_function_of_metabox()
         <?php echo "Please set your OpenAI API key in the <a href='/wp-admin/admin.php?page=tmy_markdown-plugin'>settings page</a>"; ?>
     <?php else : ?>
         <form method="post" enctype="multipart/form-data">
-            <button type="submit" class="button button-primary button-large" value="" id="get_pdf_textcontent">Save PDF content to Mediacaption<span class="spinner hidden-field"></span></button>
-
-            <button type="submit" class="button button-primary button-large" value="" id="tmy_get_ai">Sync with Open Ai and generate post excerpts<span class="spinner hidden-field"></span></button>
-
+            <button type="submit" class="button button-primary button-large mb-3" value="" id="get_pdf_textcontent">Save PDF content to Caption<span class="spinner hidden-field"></span></button>
+            <button type="submit" class="button button-primary button-large mb-3" value="" id="tmy_get_ai">Summarize w. Open Ai to Description<span class="spinner hidden-field"></span></button>
         </form>
     <?php endif; ?>
-<?php }
+    <?php }
 
 add_action('admin_head', 'my_action_javascript');
 function my_action_javascript()
 {
+    global $pagenow;
     global $post;
-?>
-    <script type="text/javascript">
-        jQuery(document).ready(function($) {
-            $('#get_pdf_textcontent, #tmy_get_ai').click(function(e) {
-                console.log(e)
-                e.preventDefault()
-                e.target.disabled = true
-                e.target.querySelector(".spinner").classList.add("is-active");
-                e.target.querySelector(".spinner").classList.remove("hidden-field");
-                var data = {
-                    action: 'tmy_ajax_handler',
-                };
-                if (e.target.id === "get_pdf_textcontent") {
-                    data.get_pdf_textcontent = <?php echo $post->ID ?>
+    if ($pagenow === "post.php" && $post->post_type === "attachment") {
+    ?>
+        <script type="text/javascript">
+            jQuery(document).ready(function($) {
+                $('#get_pdf_textcontent, #tmy_get_ai').click(function(e) {
+                    e.preventDefault()
+                    e.target.disabled = true
+                    e.target.querySelector(".spinner").classList.add("is-active");
+                    e.target.querySelector(".spinner").classList.remove("hidden-field");
+                    var data = {
+                        action: 'tmy_ajax_handler',
+                    };
+                    if (e.target.id === "get_pdf_textcontent") {
+                        data.get_pdf_textcontent = <?php echo $post->ID ?>
 
-                } else {
-                    data.tmy_send_to_ai = <?php echo $post->ID ?>
-                }
-                // since 2.8 ajaxurl is always defined in the admin header and points to admin-ajax.php
-                $.post(ajaxurl, data, function(response) {
-                    if (response.includes("There has been a critical error on this website")) {
-                        var error = document.createElement("div");
-                        var errorParagraph = document.createElement("p");
-                        errorParagraph.innerHTML = response;
-                        error.classList.add("error");
-                        error.classList.add("notice");
-                        error.appendChild(errorParagraph);
-                        document.querySelector(".wrap").prepend(error);
                     } else {
-                        value = response;
-                        console.log(response);
-                        e.target.disabled = false
-                        e.target.querySelector(".spinner").classList.remove("is-active");
-                        e.target.querySelector(".spinner").classList.add("hidden-field");
-                        if (e.target.id === "get_pdf_textcontent") {
-                            document.getElementById("attachment_content").value = response;
-                        } else {
-                            document.getElementById("attachment_caption").value = response;
-                        }
+                        data.tmy_send_to_ai = <?php echo $post->ID ?>
                     }
+                    // since 2.8 ajaxurl is always defined in the admin header and points to admin-ajax.php
+                    $.post(ajaxurl, data, function(response) {
+                        if (response.includes("There has been a critical error on this website")) {
+                            var error = document.createElement("div");
+                            var errorParagraph = document.createElement("p");
+                            errorParagraph.innerHTML = response;
+                            error.classList.add("error");
+                            error.classList.add("notice");
+                            error.appendChild(errorParagraph);
+                            document.querySelector(".wrap").prepend(error);
+                        } else {
+                            value = response;
+                            e.target.disabled = false
+                            e.target.querySelector(".spinner").classList.remove("is-active");
+                            e.target.querySelector(".spinner").classList.add("hidden-field");
+                            if (e.target.id === "get_pdf_textcontent") {
+                                document.getElementById("attachment_content").value = response;
+                            } else {
+                                document.getElementById("attachment_caption").value = response;
+                            }
+                        }
+                    });
                 });
             });
-        });
-    </script>
-<?php
+        </script>
+    <?php
+    }
 }
 add_action('wp_ajax_tmy_ajax_handler', 'tmy_markdown_handle_post');
 /*
@@ -541,3 +569,74 @@ add_action('manage_pages_custom_column', function ($column_key, $post_id) {
         }
     }
 }, 10, 2);
+
+//[import_markdown_structure_search]
+function import_markdown_structure_search_func($atts)
+{
+    $html = '<form><input type="text" id="search-input" placeholder="Search..."></form><div id="search-results"></div>';
+    return $html;
+}
+add_shortcode('import_markdown_structure_search', 'import_markdown_structure_search_func');
+
+
+add_action('wp_footer', 'my_ajax_without_file');
+
+function my_ajax_without_file()
+{ ?>
+    <script type="text/javascript">
+        jQuery(document).ready(function($) {
+            $('#search-input').on('input', function(e) {
+                // $('#search-submit').on('click', function(e) {
+                // e.preventDefault()
+                ajaxurl = '<?php echo admin_url('admin-ajax.php') ?>'; // get ajaxurl
+                var data = {
+                    'action': 'frontend_action_without_file', // your action name 
+                    // 'query': document.getElementById("search-input").value // some additional data to send
+                    'query': e.target.value // some additional data to send
+                };
+                jQuery.ajax({
+                    url: ajaxurl, // this will point to admin-ajax.php
+                    type: 'POST',
+                    data: data,
+                    success: function(resp) {
+                        let response = JSON.parse(resp);
+                        var resultsDiv = document.createElement('div')
+                        response.map(post => {
+                            var link = document.createElement('a');
+                            var contentDiv = document.createElement('div');
+                            link.innerHTML = post.post_title;
+                            link.href = post.post_link;
+                            contentDiv.innerHTML = post.post_content.replace(e.target.value, `<code style="background-color: yellow;">${e.target.value}</code>`);
+                            resultsDiv.appendChild(link)
+                            resultsDiv.appendChild(contentDiv)
+                        })
+                        document.getElementById('search-results').innerHTML = resultsDiv.innerHTML
+                    }
+                });
+            });
+        })
+    </script>
+<?php
+}
+
+add_action("wp_ajax_frontend_action_without_file", "frontend_action_without_file");
+add_action("wp_ajax_nopriv_frontend_action_without_file", "frontend_action_without_file");
+
+function frontend_action_without_file()
+{
+    global $wpdb;
+    $query = $_POST['query'];
+    $result = $wpdb->get_results("SELECT * FROM wp_posts WHERE post_content LIKE '%$query%'");
+    $posts = array();
+    if ($result) {
+        foreach ($result as $pageThing) {
+            array_push($posts, array(
+                "post_link" => get_permalink($pageThing->ID),
+                "post_title" => $pageThing->post_title,
+                "post_content" => substr($pageThing->post_content,  strpos($pageThing->post_content, $query) - 100, 200),
+            ));
+        }
+    }
+    echo json_encode($posts);
+    wp_die();
+}
