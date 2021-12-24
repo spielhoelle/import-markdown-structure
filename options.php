@@ -163,14 +163,13 @@ function tmy_markdown_handle_post()
                     $basename = basename($post_content_link);
                     $filename = urldecode(preg_replace('/\?.*/', '', $basename));
                     $file_parts = pathinfo($filename);
-                    if (!post_exists($filename)
+                    if (
+                        !post_exists($filename)
+                        && $filename !== 'edit'
+                        && $filename !== 'view'
                         // && isset($file_parts["extension"]) && $file_parts['extension'] === 'docx'
                     ) {
                         if ($i < $max_file_download) {
-                            // echo "not existing";
-                            // echo '<pre>$post_content_links';
-                            // var_dump($post_content_links);
-                            // echo '</pre>';
                             $query = parse_url($post_content_link, PHP_URL_QUERY);
                             if ($query) {
                                 $post_content_link .= '&raw=1&dl=1';
@@ -178,7 +177,6 @@ function tmy_markdown_handle_post()
                                 $post_content_link .= '?raw=1&dl=1';
                             }
                             $post_content_link = str_replace('dl=0', '', $post_content_link);
-                            var_dump('$post_content_lin' . $post_content_link);
                             $contents = file_get_contents($post_content_link, false, stream_context_create(['http' => ['ignore_errors' => true]]));
                             // var_dump($http_response_header);
                             $post_id = $eachpost->ID;
