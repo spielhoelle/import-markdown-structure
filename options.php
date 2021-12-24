@@ -161,7 +161,8 @@ function tmy_markdown_handle_post()
             if (count($post_content_links) > 0) {
                 foreach ($post_content_links as $post_content_link) {
                     $basename = basename($post_content_link);
-                    $filename = urldecode(preg_replace('/\?.*/', '', $basename));
+                    $basefilename = urldecode(preg_replace('/\?.*/', '', $basename));
+                    $filename = preg_replace('/#[^?|^&]*/', '', $basefilename);
                     $file_parts = pathinfo($filename);
                     if (
                         !post_exists($filename)
