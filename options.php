@@ -217,7 +217,7 @@ function tmy_markdown_handle_post()
         if ($file_parts['extension'] === 'pdf') {
             $parser = new \Smalot\PdfParser\Parser();
             $pdf    = $parser->parseFile($filepath);
-            $text_content = $pdf->getText();
+            $text_content = trim(preg_replace('/\s\s+/', ' ', $pdf->getText()));
             // Retrieve all details from the pdf file.
             // $details  = $pdf->getDetails();
             // Loop over each property to extract values (string or array).
