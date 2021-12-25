@@ -271,21 +271,25 @@ function tmy_markdown_handle_post()
         }
     } else if ($_POST && isset($_POST['tmy_send_to_ai'])) {
         $post = get_post($_POST['tmy_send_to_ai']);
-        $shortened = substr($post->post_content, 0, 1900);
-        $trimmed = trim(preg_replace('/\s\s+/', ' ', $shortened));
+        $trimmed = trim(preg_replace('/\s\s+/', ' ', $post->post_content));
+        $trimmed = preg_replace('/\d{1,2}\s{1}/', "", $trimmed);
+        $max_tokens = 64;
+        preg_match('/[A-Z]{1}[a-z]*\s[a-z]*\s[a-z]*\s[a-z]*\s[a-z]*\s[^\.]*\./', $trimmed, $indexOfFirstSentence, PREG_OFFSET_CAPTURE);
+        $shortened = substr($trimmed, $indexOfFirstSentence && $indexOfFirstSentence[0] ? $indexOfFirstSentence[0][1] : 0, 2049 - $max_tokens);
+        $tldr = $shortened . "\n\ntl;dr:\n";
         $args = array(
             'headers' => array(
                 'Content-Type' => 'application/json',
                 'Authorization' => 'Bearer ' . get_option('tmy_open_ai_api_key'),
             ),
             "body" => json_encode(array(
-                "prompt" => $trimmed,
-                "temperature" => 0,
-                "max_tokens" => 64,
+                "prompt" => $tldr,
+                "temperature" => 0.7,
+                "max_tokens" => $max_tokens,
                 "top_p" => 1,
-                "frequency_penalty" => 0,
+                "frequency_penalty" => 0.2,
                 "presence_penalty" => 0,
-                "stop" => ["\n"]
+                "stop" => ["\n\ntl;dr:\n"]
             ))
         );
         $response = wp_remote_post('https://api.openai.com/v1/engines/davinci/completions', $args);
