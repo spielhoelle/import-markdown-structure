@@ -29,11 +29,6 @@ include(plugin_dir_path(__FILE__) . 'class.pdf2text.php');
 // var_dump($pagenow);
 // echo '</pre>';
 $max_file_download = 5;
-if ($pagenow === 'options-general.php') {
-    $allposts = get_posts(array('post_type' => 'archive', 'numberposts' => -1));
-    foreach ($allposts as $eachpost) {
-        wp_delete_post($eachpost->ID, true);
-    }
 // if ($pagenow === 'options-general.php') {
 //     $allposts = get_posts(array('post_type' => 'archive', 'numberposts' => -1));
 //     foreach ($allposts as $eachpost) {
