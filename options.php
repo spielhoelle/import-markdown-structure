@@ -34,22 +34,27 @@ if ($pagenow === 'options-general.php') {
     foreach ($allposts as $eachpost) {
         wp_delete_post($eachpost->ID, true);
     }
-    $attachments = get_posts(array('post_type' => 'attachment', 'numberposts' => -1));
-    foreach ($attachments as $eachpost) {
-        // if ($eachpost->post_title !== "MarkDown export mindnode") {
-        wp_delete_post($eachpost->ID, true);
-        // }
-    }
-    $args = array(
-        "hide_empty" => 0,
-        "taxonomy"       => "archive-category"
-    );
-    $types = get_terms($args);
+// if ($pagenow === 'options-general.php') {
+//     $allposts = get_posts(array('post_type' => 'archive', 'numberposts' => -1));
+//     foreach ($allposts as $eachpost) {
+//         wp_delete_post($eachpost->ID, true);
+//     }
+//     $attachments = get_posts(array('post_type' => 'attachment', 'numberposts' => -1));
+//     foreach ($attachments as $eachpost) {
+//         // if ($eachpost->post_title !== "MarkDown export mindnode") {
+//         wp_delete_post($eachpost->ID, true);
+//         // }
+//     }
+//     $args = array(
+//         "hide_empty" => 0,
+//         "taxonomy"       => "archive-category"
+//     );
+//     $types = get_terms($args);
 
-    foreach ($types as $type) {
-        wp_delete_term($type->term_id, 'archive-category');
-    }
-}
+//     foreach ($types as $type) {
+//         wp_delete_term($type->term_id, 'archive-category');
+//     }
+// }
 add_filter('wp_check_filetype_and_ext', function ($data, $file, $filename, $mimes) {
     $filetype = wp_check_filetype($filename, $mimes);
     return [
