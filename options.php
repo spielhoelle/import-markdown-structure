@@ -112,6 +112,13 @@ function tmy_markdown_init()
 {
     tmy_markdown_handle_post();
     global $max_file_download;
+    $attachments = get_posts(array('post_type' => 'attachment', 'numberposts' => -1));
+    $parsable_docs = array_filter($attachments, function ($attachment) {
+        return $attachment->post_mime_type === "application/pdf" || $attachment->post_mime_type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+    });
+    $placeholders = array_filter($attachments, function ($attachment) {
+        return $attachment->post_content == 'placeholder' && ($attachment->post_mime_type === "application/pdf" || $attachment->post_mime_type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+    });
 ?>
     <h1>Import markdown file to archive post_type hierarchy</h1>
 
@@ -129,20 +136,39 @@ function tmy_markdown_init()
         <?php submit_button('Upload') ?>
     </form>
     <form method="post" enctype="multipart/form-data">
-        <h2>Parse dropboxlinks PDFs and attach to posts</h2>
+        <h2>Download Files from dropbox-links and attach to archives</h2>
+        <?php
+        $allposts = get_posts(array('post_type' => 'archive', 'numberposts' => -1));
+        $all_content_links = array();
+        foreach ($allposts as $eachpost) {
+            $all_content_links = array_merge($all_content_links, wp_extract_urls($eachpost->post_content));
+        }
+        ?>
+        <?php echo 'Total links found in all archive posts: '. count($all_content_links); ?>
         <input type="hidden" name="download_files_from_content_links" value="true" />
-        <?php submit_button('Parse') ?>
-        Out of permormance reasons always just in a <?php echo $max_file_download ?> batch followed by the next manual invokation
+        <?php submit_button('Download PDFs') ?>
     </form>
-    <!-- <form method="post" enctype="multipart/form-data">
-        <h2></h2>
+    <form method="post" enctype="multipart/form-data">
+        <h2>Extract text from PDFs and add to media description</h2>
+        Total Media found: <?php echo count($attachments); ?>
+        <br/>
+        Media type PDF or docx: <?php echo count($parsable_docs); ?>
+        <br/>
+        PDFs or docx without description: <?php echo count($placeholders); ?>
+        <br />
+        <?php
+        foreach ($placeholders as $eachpost) {
+            echo '<a href="' . get_edit_post_link($eachpost->ID) . '">' . $eachpost->post_title . '</a><br/>';
+        }
+        ?>
         <?php if (empty(get_option('tmy_open_ai_api_key'))) : ?>
             First set API key to interact with OpenAI
         <?php else : ?>
             <input type="hidden" name="get_pdf_textcontent" value="true" />
-            <?php submit_button('Bulk analyse all PDFs') ?>
+            <?php submit_button('Extract text') ?>
         <?php endif; ?>
-    </form> -->
+    </form>
+    Out of performance reasons, just batch <?php echo $max_file_download ?> documents at a time.
 <?php
 }
 function attachment_url_to_path($url)
@@ -173,7 +199,32 @@ function tmy_markdown_handle_post()
         download_files_from_content_links();
     } else if ($_POST && isset($_POST['get_pdf_textcontent'])) {
         $id = $_POST['get_pdf_textcontent'];
-        get_pdf_textcontent($id);
+        if ($id !== 'true') {
+            // individual trigger from media
+            get_pdf_textcontent($id);
+        } else {
+            // bulk trigger from plugin options
+            $attachments = get_posts(array('post_type' => 'attachment', 'numberposts' => -1));
+            $placeholders = array_filter($attachments, function ($attachment) {
+                return $attachment->post_content == 'placeholder' && ($attachment->post_mime_type === "application/pdf" || $attachment->post_mime_type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+            });
+            $i = 0;
+            echo "<h2>Extracted text from archive-posts: </h2>";
+            foreach ($placeholders as $eachpost) {
+                if ($i < $max_file_download) {
+                    try {
+                        get_pdf_textcontent($eachpost->ID, false);
+                        echo '<a target="_blank" href="' . get_edit_post_link($eachpost->ID) . '">' . $eachpost->post_title . '</a><br/>';
+                        $i++;
+                    } catch (Throwable $t) {
+                        echo $t;
+                        echo '<br/>';
+                        $i++;
+                        continue;
+                    }
+                }
+            }
+        }
     } else if ($_POST && isset($_POST['tmy_send_to_ai'])) {
         $id = $_POST['tmy_send_to_ai'];
         tmy_send_to_ai($id);
@@ -192,7 +243,7 @@ add_action('add_meta_boxes', function () {
         echo '</ul>';
     }, 'archive');
 });
-function get_pdf_textcontent($id)
+function get_pdf_textcontent($id, $return = true)
 {
     $post = get_post($id);
     $filepath = get_attached_file($post->ID);
@@ -247,12 +298,15 @@ function get_pdf_textcontent($id)
         // 'post_excerpt' => "replaced by AI summary"
     );
     $err = wp_update_post($updated_post, true, true);
+    file_put_contents('php://stdout', 'PDF content saved ' . time(), FILE_APPEND);
     if (is_wp_error($err)) {
         var_dump($err);
         error_log(print_r($err, 1));
     } else {
-        echo $result;
-        die;
+        if ($return) {
+            echo $result;
+            die;
+        }
     }
 }
 function download_files_from_content_links()
