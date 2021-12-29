@@ -28,7 +28,7 @@ include(plugin_dir_path(__FILE__) . 'class.pdf2text.php');
 // echo '<pre>26 $pagenow';
 // var_dump($pagenow);
 // echo '</pre>';
-$max_file_download = 5;
+$max_file_download = get_option('tmy_open_ai_batch_size') ? get_option('tmy_open_ai_batch_size') : 5;
 // if ($pagenow === 'options-general.php') {
 //     $allposts = get_posts(array('post_type' => 'archive', 'numberposts' => -1));
 //     foreach ($allposts as $eachpost) {
@@ -103,6 +103,7 @@ if (is_admin()) {
 function tmy_markdown_plugin_settings()
 {
     register_setting('tmy-option-group', 'tmy_open_ai_api_key');
+    register_setting('tmy-option-group', 'tmy_open_ai_batch_size');
 }
 function tmy_markdown_plugin_setup_menu()
 {
@@ -126,8 +127,10 @@ function tmy_markdown_init()
     <form method="post" action="options.php">
         <h2>Set OpenAI API key</h2>
         <?php settings_fields('tmy-option-group'); ?>
-        <?php do_settings_sections('tmy-option-group'); ?>
         <input type='text' class="regular-text" id="first_field_id" name="tmy_open_ai_api_key" value="<?php echo get_option('tmy_open_ai_api_key'); ?>">
+        <h2>Set max batch size</h2>
+        <?php settings_fields('tmy-option-group'); ?>
+        <input type='text' class="regular-text" id="first_field_id" name="tmy_open_ai_batch_size" value="<?php echo get_option('tmy_open_ai_batch_size'); ?>">
         <?php submit_button(); ?>
     </form>
     <form method="post" enctype="multipart/form-data">
