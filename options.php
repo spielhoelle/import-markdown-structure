@@ -147,16 +147,16 @@ function tmy_markdown_init()
             $all_content_links = array_merge($all_content_links, wp_extract_urls($eachpost->post_content));
         }
         ?>
-        <?php echo 'Total links found in all archive posts: '. count($all_content_links); ?>
+        <?php echo 'Total links found in all archive posts: ' . count($all_content_links); ?>
         <input type="hidden" name="download_files_from_content_links" value="true" />
-        <?php submit_button('Download PDFs') ?>
+        <?php submit_button('Batch ' . $max_file_download . ' download PDFs') ?>
     </form>
     <form method="post" enctype="multipart/form-data">
         <h2>Extract text from PDFs and add to media description</h2>
         Total Media found: <?php echo count($attachments); ?>
-        <br/>
+        <br />
         Media type PDF or docx: <?php echo count($parsable_docs); ?>
-        <br/>
+        <br />
         PDFs or docx without description: <?php echo count($placeholders); ?>
         <br />
         <?php
@@ -168,7 +168,7 @@ function tmy_markdown_init()
             First set API key to interact with OpenAI
         <?php else : ?>
             <input type="hidden" name="get_pdf_textcontent" value="true" />
-            <?php submit_button('Extract text') ?>
+            <?php submit_button('Batch extract ' . $max_file_download . ' text') ?>
         <?php endif; ?>
     </form>
     Out of performance reasons, just batch <?php echo $max_file_download ?> documents at a time.
