@@ -10,29 +10,32 @@ Author URI: https://tmy.io
 include 'vendor/autoload.php';
 @ini_set('display_errors', 1);
 @ini_set('max_execution_time', '300'); //300 seconds = 5 minutes
+ini_set('memory_limit', '512M');
+add_filter('http_request_args', 'tmy_http_request_args', 100, 1);
+function tmy_http_request_args($r) //called on line 237
+{
+    $r['timeout'] = 15;
+    return $r;
+}
+
+add_action('http_api_curl', 'tmy_http_api_curl', 100, 1);
+function tmy_http_api_curl($handle) //called on line 1315
+{
+    curl_setopt($handle, CURLOPT_CONNECTTIMEOUT, 15);
+    curl_setopt($handle, CURLOPT_TIMEOUT, 15);
+}
 include(plugin_dir_path(__FILE__) . 'class.pdf2text.php');
-// $pdf2text = new PDF2Text();
-// $a = filesize('/var/www/html/wp-content/uploads/2021/11/Emotional-Design-Why-We-Love-or-Hate-Everyday-Things-Donald-Norman.pdf');
-// echo '<pre>$a';
-// var_dump($a);
-// echo '</pre>';
-
-// $pdf    = $parser->parseFile('/var/www/html/wp-content/uploads/2021/11/Emotional-Design-Why-We-Love-or-Hate-Everyday-Things-Donald-Norman.pdf');
-// $pages  = $pdf->getPages();
-// echo '<pre>$pages';
-// var_dump(array_slice($pages, 2));
-// echo '</pre>';
-// var_dump(PDFParser);
-
-// global $pagenow;
-// echo '<pre>26 $pagenow';
-// var_dump($pagenow);
-// echo '</pre>';
 $max_file_download = get_option('tmy_open_ai_batch_size') ? get_option('tmy_open_ai_batch_size') : 5;
-// if ($pagenow === 'options-general.php') {
-//     $allposts = get_posts(array('post_type' => 'archive', 'numberposts' => -1));
+$max_tokens = get_option('tmy_max_tokens') ? intval(get_option('tmy_max_tokens')) : 100;
+
+// if ($pagenow === 'options-general.php' && count($_GET) > 0 && $_GET['delete'] === "true") {
+//     $allposts = get_posts(array('post_type' => 'post', 'numberposts' => -1));
 //     foreach ($allposts as $eachpost) {
 //         wp_delete_post($eachpost->ID, true);
+//     }
+//     $allarchives = get_posts(array('post_type' => 'archive', 'numberposts' => -1));
+//     foreach ($allarchives as $eacharchive) {
+//         wp_delete_post($eacharchive->ID, true);
 //     }
 //     $attachments = get_posts(array('post_type' => 'attachment', 'numberposts' => -1));
 //     foreach ($attachments as $eachpost) {
@@ -50,22 +53,8 @@ $max_file_download = get_option('tmy_open_ai_batch_size') ? get_option('tmy_open
 //         wp_delete_term($type->term_id, 'archive-category');
 //     }
 // }
-require_once(plugin_dir_path(__FILE__) . '/action-scheduler/action-scheduler.php');
 
-function tmy_schedule_download_parse_task()
-{
-    if (false === as_has_scheduled_action('tmy_shedule_background_task')) {
-        as_schedule_recurring_action(time() + 5, MINUTE_IN_SECONDS, 'tmy_shedule_background_task');
-    }
-}
-add_action('init', 'tmy_schedule_download_parse_task');
 
-function tmy_schedule_download_parse_pdfs()
-{
-    file_put_contents('php://stdout', 'Background task ran ' . time(), FILE_APPEND);
-    download_files_from_content_links();
-}
-add_action('tmy_shedule_background_task', 'tmy_schedule_download_parse_pdfs');
 add_filter('wp_check_filetype_and_ext', function ($data, $file, $filename, $mimes) {
     $filetype = wp_check_filetype($filename, $mimes);
     return [
@@ -104,6 +93,7 @@ function tmy_markdown_plugin_settings()
 {
     register_setting('tmy-option-group', 'tmy_open_ai_api_key');
     register_setting('tmy-option-group', 'tmy_open_ai_batch_size');
+    register_setting('tmy-option-group', 'tmy_max_tokens');
 }
 function tmy_markdown_plugin_setup_menu()
 {
@@ -111,14 +101,45 @@ function tmy_markdown_plugin_setup_menu()
 }
 function tmy_markdown_init()
 {
+    global $max_tokens;
     tmy_markdown_handle_post();
     global $max_file_download;
     $attachments = get_posts(array('post_type' => 'attachment', 'numberposts' => -1));
+    //TODO remove me later
+    //migrate media caption dropbox link to own meta field
+    $allposts = get_posts(array('post_type' => 'archive', 'numberposts' => -1));
+    foreach ($allposts as $eachpost) {
+        $post_content_links = wp_extract_urls($eachpost->post_content);
+        if (count($post_content_links) > 0) {
+            foreach ($post_content_links as $post_content_link) {
+                $existing_media_post = array_filter($attachments, function ($attachment) use ($post_content_link) {
+                    return strpos($post_content_link, rawurlencode($attachment->post_title));
+                });
+                if (count($existing_media_post) > 0) {
+                    $post = current($existing_media_post);
+                    update_post_meta($post->ID, '_tmy_meta_key', $post_content_link);
+                    $attachment = array(
+                        'ID' => $post->ID,
+                        'post_excerpt' => preg_match('/^https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&\/\/=]*)$/', $post->post_excerpt) ? "" : $post->post_excerpt,
+                        'post_content' => $post->post_content === "placeholder" ? "" : $post->post_content
+                    );
+                    $value = get_post_meta($post->ID, '_tmy_meta_ai_key', true);
+                    if ($value === "") {
+                        update_post_meta($post->ID, '_tmy_meta_ai_key', $post->post_content);
+                    }
+                    wp_update_post($attachment);
+                }
+            }
+        }
+    }
     $parsable_docs = array_filter($attachments, function ($attachment) {
         return $attachment->post_mime_type === "application/pdf" || $attachment->post_mime_type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
     });
     $placeholders = array_filter($attachments, function ($attachment) {
-        return $attachment->post_content == 'placeholder' && ($attachment->post_mime_type === "application/pdf" || $attachment->post_mime_type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+        return $attachment->post_content == '' && ($attachment->post_mime_type === "application/pdf" || $attachment->post_mime_type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+    });
+    $media_with_just_link_excerpt = array_filter($parsable_docs, function ($attachment) {
+        return $attachment->post_content !== "" && $attachment->post_excerpt === "";
     });
 ?>
     <h1>Import markdown file to archive post_type hierarchy</h1>
@@ -129,8 +150,9 @@ function tmy_markdown_init()
         <?php settings_fields('tmy-option-group'); ?>
         <input type='text' class="regular-text" id="first_field_id" name="tmy_open_ai_api_key" value="<?php echo get_option('tmy_open_ai_api_key'); ?>">
         <h2>Set max batch size</h2>
-        <?php settings_fields('tmy-option-group'); ?>
-        <input type='text' class="regular-text" id="first_field_id" name="tmy_open_ai_batch_size" value="<?php echo get_option('tmy_open_ai_batch_size'); ?>">
+        <input type='text' class="regular-text" id="second_field_id" name="tmy_open_ai_batch_size" value="<?php echo get_option('tmy_open_ai_batch_size'); ?>">
+        <h2>Set max_tokens</h2>
+        <input type='text' class="regular-text" id="third_field_id" name="tmy_max_tokens" value="<?php echo $max_tokens; ?>">
         <?php submit_button(); ?>
     </form>
     <form method="post" enctype="multipart/form-data">
@@ -149,7 +171,7 @@ function tmy_markdown_init()
         ?>
         <?php echo 'Total links found in all archive posts: ' . count($all_content_links); ?>
         <input type="hidden" name="download_files_from_content_links" value="true" />
-        <?php submit_button('Batch ' . $max_file_download . ' download PDFs') ?>
+        <?php submit_button('Batch download ' . $max_file_download . ' PDFs or docx') ?>
     </form>
     <form method="post" enctype="multipart/form-data">
         <h2>Extract text from PDFs and add to media description</h2>
@@ -168,9 +190,20 @@ function tmy_markdown_init()
             First set API key to interact with OpenAI
         <?php else : ?>
             <input type="hidden" name="get_pdf_textcontent" value="true" />
-            <?php submit_button('Batch extract ' . $max_file_download . ' text') ?>
+            <?php submit_button('Batch extract ' . $max_file_download . ' text from PDFs or docx') ?>
         <?php endif; ?>
     </form>
+    <h2>Send Media description to OpenAi</h2>
+    <?php echo 'PDFs or docx without summary: ' . count($media_with_just_link_excerpt) ?>:
+    <br />
+    <?php foreach ($media_with_just_link_excerpt as $key => $value) {
+        echo '<a target="_blank" href="' . get_edit_post_link($value->ID) . '">' . $value->post_title . '</a><br/>';
+    } ?>
+    <form method="post" enctype="multipart/form-data">
+        <input type="hidden" name="tmy_send_to_ai" value="true" />
+        <?php submit_button('Batch summarize ' . $max_file_download . ' PDFs or docx') ?>
+    </form>
+    <br />
     Out of performance reasons, just batch <?php echo $max_file_download ?> documents at a time.
 <?php
 }
@@ -209,7 +242,7 @@ function tmy_markdown_handle_post()
             // bulk trigger from plugin options
             $attachments = get_posts(array('post_type' => 'attachment', 'numberposts' => -1));
             $placeholders = array_filter($attachments, function ($attachment) {
-                return $attachment->post_content == 'placeholder' && ($attachment->post_mime_type === "application/pdf" || $attachment->post_mime_type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+                return $attachment->post_content == '' && ($attachment->post_mime_type === "application/pdf" || $attachment->post_mime_type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
             });
             $i = 0;
             echo "<h2>Extracted text from archive-posts: </h2>";
@@ -230,7 +263,36 @@ function tmy_markdown_handle_post()
         }
     } else if ($_POST && isset($_POST['tmy_send_to_ai'])) {
         $id = $_POST['tmy_send_to_ai'];
-        tmy_send_to_ai($id);
+        if ($id !== 'true') {
+            // individual trigger from media
+            tmy_send_to_ai($id);
+        } else {
+            // bulk trigger from plugin options
+            $attachments = get_posts(array('post_type' => 'attachment', 'numberposts' => -1));
+            $parsable_docs = array_filter($attachments, function ($attachment) {
+                return $attachment->post_mime_type === "application/pdf" || $attachment->post_mime_type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+            });
+            $media_with_just_link_excerpt = array_filter($parsable_docs, function ($attachment) {
+                return $attachment->post_excerpt === "" && $attachment->post_content !== "";
+            });
+            $i = 0;
+            echo "<h2>Summarized: </h2>";
+            foreach ($media_with_just_link_excerpt as $key => $eachpost) {
+                if ($i < $max_file_download) {
+                    try {
+                        echo '<a target="_blank" href="' . get_edit_post_link($eachpost->ID) . '">' . $eachpost->post_title . '</a><br/>';
+                        tmy_send_to_ai($eachpost->ID, false);
+                        echo '<br/>';
+                        $i++;
+                    } catch (Throwable $t) {
+                        echo $t;
+                        echo '<br/>';
+                        $i++;
+                        continue;
+                    }
+                }
+            }
+        }
     }
 };
 add_action('add_meta_boxes', function () {
@@ -256,7 +318,7 @@ function get_pdf_textcontent($id, $return = true)
     if ($file_parts['extension'] === 'pdf') {
         $parser = new \Smalot\PdfParser\Parser();
         $pdf    = $parser->parseFile($filepath);
-        $raw_text= $pdf->getText();
+        $raw_text = $pdf->getText();
         $text_content = $raw_text;
         // Retrieve all details from the pdf file.
         // $details  = $pdf->getDetails();
@@ -366,10 +428,10 @@ function download_files_from_content_links()
                             'post_mime_type' => $filetype['type'],
                             'post_title'     => $filename,
                             'post_status'    => 'inherit',
-                            'post_content'   => "placeholder",
-                            'post_excerpt'   => $post_content_link,
+                            'post_content'   => "",
                         );
                         $attachment_id = wp_insert_attachment($attachment, $new_file_path, $post_id);
+                        update_post_meta($post_id, '_tmy_meta_key', $post_content_link);
                         require_once(ABSPATH . 'wp-admin/includes/image.php');
                         $attach_data = wp_generate_attachment_metadata($attachment_id, $new_file_path);
                         wp_update_attachment_metadata($attachment_id, $attach_data);
@@ -383,15 +445,15 @@ function download_files_from_content_links()
     }
 }
 
-function tmy_send_to_ai($id)
+function tmy_send_to_ai($id, $return = true)
 {
-    $post = get_post($id);
-    $trimmed = trim(preg_replace('/\s\s+/', ' ', $post->post_content));
-    $trimmed = preg_replace('/\d{1,2}\s{1}/', "", $trimmed);
-    $max_tokens = 64;
-    preg_match('(?!.*copyright)[A-Z]{1}[a-z]*\s\w*,?\s\w*,?\s\w*,?\s\w*,?\s[^\.]*\.\s', $trimmed, $indexOfFirstSentence, PREG_OFFSET_CAPTURE);
-    $shortened = substr($trimmed, $indexOfFirstSentence && $indexOfFirstSentence[0] ? $indexOfFirstSentence[0][1] : 0, 2049 - $max_tokens);
-    $tldr = $shortened . "\n\ntl;dr:\n";
+    global $max_tokens;
+    $value = get_post_meta($id, '_tmy_meta_ai_key', true);
+    // $trimmed = trim(preg_replace('/\s\s+/', ' ', $value));
+    // $trimmed = preg_replace('/\d{1,2}\s{1}/', "", $trimmed);
+    // preg_match('/(?!.*copyright)[A-Z]{1}[a-z]*\s\w*,?\s\w*,?\s\w*,?\s\w*,?\s[^\.]*\.\s/', $trimmed, $indexOfFirstSentence, PREG_OFFSET_CAPTURE);
+    // $shortened = substr($trimmed, $indexOfFirstSentence && $indexOfFirstSentence[0] ? $indexOfFirstSentence[0][1] : 0, 100000 - $max_tokens);
+    $tldr = $value . "\n\ntl;dr:\n";
     $args = array(
         'headers' => array(
             'Content-Type' => 'application/json',
@@ -416,18 +478,22 @@ function tmy_send_to_ai($id)
     $body = wp_remote_retrieve_body($response);
     $json = json_decode($body);
     $post_data = "";
-
-    foreach ($json->choices as $choice) {
-        $post_data .= $choice->text . "\n\r";
+    if (!isset($json->choices)) {
+        var_dump($json);
+    } else {
+        foreach ($json->choices as $choice) {
+            $post_data .= $choice->text . "\n\r";
+        }
+        $data = array(
+            'ID' => $id,
+            'post_excerpt' => $post_data
+        );
+        $res = wp_update_post($data, true);
     }
-    $data = array(
-        'ID' => $post->ID,
-        'post_excerpt' => $post_data
-    );
-    // var_dump('$data' . $data);
-    $res = wp_update_post($data, true);
-    echo $post_data;
-    die;
+    if ($return) {
+        echo trim($post_data);
+        die;
+    }
 }
 add_action('add_meta_boxes', 'tmy_add_your_meta_box2');
 function tmy_add_your_meta_box2()
@@ -435,20 +501,51 @@ function tmy_add_your_meta_box2()
     global $post;
     if ($post->post_mime_type === "application/pdf" || $post->post_mime_type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
         add_meta_box('tmy_markdown_upload_pdf', 'Save PDF content to Mediacaption', 'tmy_function_of_metabox', 'attachment', 'side', 'high');
+        add_meta_box('tmy_markdown_upload_pdf_2', 'Text send to AI', 'tmy_function_of_metabox_2', 'attachment', 'normal', 'high');
     }
 }
-function tmy_function_of_metabox()
+function tmy_save_meta_box($post_id)
 {
+    if (array_key_exists('tmy_field', $_POST)) {
+        update_post_meta($post_id, '_tmy_meta_key', $_POST['tmy_field']);
+    }
+    if (array_key_exists('tmy_ai_field', $_POST)) {
+        update_post_meta($post_id, '_tmy_meta_ai_key', $_POST['tmy_ai_field']);
+    }
+}
+add_action('edit_attachment', 'tmy_save_meta_box');
+function tmy_function_of_metabox($post)
+{
+    $value = get_post_meta($post->ID, '_tmy_meta_key', true);
 ?>
     <?php if (empty(get_option('tmy_open_ai_api_key'))) : ?>
         <?php echo "Please set your OpenAI API key in the <a href='/wp-admin/admin.php?page=tmy_markdown-plugin'>settings page</a>"; ?>
     <?php else : ?>
+        <label for="tmy_field">Original markdown link</label>
         <form method="post" enctype="multipart/form-data">
-            <button type="submit" class="button button-primary button-large mb-3" value="" id="get_pdf_textcontent">Save PDF content to Caption<span class="spinner hidden-field"></span></button>
-            <button type="submit" class="button button-primary button-large mb-3" value="" id="tmy_get_ai">Summarize w. Open Ai to Description<span class="spinner hidden-field"></span></button>
+            <input value="<?php echo $value ?>" type='text' class="widefat urlfield" name="tmy_field" id="tmy_field">
+        </form>
+        <br />
+        <br />
+        <form method=" post" enctype="multipart/form-data">
+            <button type="submit" class="button button-primary button-large mb-3" value="" id="get_pdf_textcontent">Get text to `Description`<span class="spinner hidden-field"></span></button>
+            <button type="submit" class="button button-primary button-large mb-3" value="" id="tmy_get_ai">Get summary to `Caption`<span class="spinner hidden-field"></span></button>
         </form>
     <?php endif; ?>
-    <?php }
+<?php }
+function tmy_function_of_metabox_2($post)
+{
+    $value = get_post_meta($post->ID, '_tmy_meta_ai_key', true);
+    global $max_tokens;
+?>
+    <textarea rows="10" type='text' class="widefat urlfield" name="tmy_ai_field" id="tmy_ai_field"><?php echo $value ?></textarea>
+
+    <?php
+    echo strlen($value) . ' letters which are ~ ' . strlen($value) / 4 . ' tokens. Minus ' . $max_tokens . ' defined max_tokens = ' . intval((strlen($value) / 4 - $max_tokens)) . ' tokens that get send to OpenAI. ';
+    if ((strlen($value) / 4 - $max_tokens) > 2048) {
+        echo "<span style='color: red;'>" . intval(strlen($value) / 4 - $max_tokens - 2048) . " tokens too much! Please shorten your text.</span>";
+    }
+}
 
 add_action('admin_head', 'my_action_javascript');
 function my_action_javascript()
