@@ -256,7 +256,8 @@ function get_pdf_textcontent($id, $return = true)
     if ($file_parts['extension'] === 'pdf') {
         $parser = new \Smalot\PdfParser\Parser();
         $pdf    = $parser->parseFile($filepath);
-        $text_content = trim(preg_replace('/\s\s+/', ' ', $pdf->getText()));
+        $raw_text= $pdf->getText();
+        $text_content = $raw_text;
         // Retrieve all details from the pdf file.
         // $details  = $pdf->getDetails();
         // Loop over each property to extract values (string or array).
@@ -291,10 +292,15 @@ function get_pdf_textcontent($id, $return = true)
         zip_close($zip);
         $content = str_replace('</w:r></w:p></w:tc><w:tc>', " ", $content);
         $content = str_replace('</w:r></w:p>', "\r\n", $content);
-        $text_content = strip_tags($content);
+        $raw_text = strip_tags($content);
+        $text_content = $raw_text;
     }
-    $postid = $post->ID;
+    $text_content  = preg_replace('/\s\s+/', ' ', $text_content);
+    $text_content  = preg_replace('/\n+/', ' ', $text_content);
+    $text_content = trim($text_content);
     $result = str_replace("\t", '', trim($text_content));
+    // $result = substr($raw_text, 0 , 1000) . "\n\n" . $result;
+    $postid = $post->ID;
     $updated_post = array(
         'ID' => $postid,
         'post_content' => $result,
@@ -383,7 +389,7 @@ function tmy_send_to_ai($id)
     $trimmed = trim(preg_replace('/\s\s+/', ' ', $post->post_content));
     $trimmed = preg_replace('/\d{1,2}\s{1}/', "", $trimmed);
     $max_tokens = 64;
-    preg_match('/[A-Z]{1}[a-z]*\s[a-z]*\s[a-z]*\s[a-z]*\s[a-z]*\s[^\.]*\./', $trimmed, $indexOfFirstSentence, PREG_OFFSET_CAPTURE);
+    preg_match('(?!.*copyright)[A-Z]{1}[a-z]*\s\w*,?\s\w*,?\s\w*,?\s\w*,?\s[^\.]*\.\s', $trimmed, $indexOfFirstSentence, PREG_OFFSET_CAPTURE);
     $shortened = substr($trimmed, $indexOfFirstSentence && $indexOfFirstSentence[0] ? $indexOfFirstSentence[0][1] : 0, 2049 - $max_tokens);
     $tldr = $shortened . "\n\ntl;dr:\n";
     $args = array(
