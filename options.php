@@ -812,7 +812,7 @@ function my_ajax_without_file()
                             link.innerHTML = post.post_title;
                             link.href = post.post_link;
                             contentDiv.innerHTML = `<b>Content:</b> ${post.post_content.replace(e.target.value, `<code style="background-color: yellow;">${e.target.value}</code>`)}`;
-                            excerptDiv.innerHTML = `<b>Excerpt:</b> ${post.post_excerpt.replace(e.target.value, `<code style="background-color: yellow;">${e.target.value}</code>`)}`;
+                            excerptDiv.innerHTML = `<b>Excerpt:</b> ${post.post_excerpt.includes(data.query) ? post.post_excerpt.replace(e.target.value, `<code style="background-color: yellow;">${e.target.value}</code>`) : post.post_excerpt }`;
                             postDiv.appendChild(link)
                             postDiv.appendChild(excerptDiv)
                             postDiv.appendChild(contentDiv)
@@ -843,10 +843,24 @@ function frontend_action_without_file()
                 "post_title" => $pageThing->post_title,
                 "post_type" => $pageThing->post_type,
                 "post_content" => substr($pageThing->post_content, $query !== "" ? strpos($pageThing->post_content, $query) - 400 : 0, 800),
-                "post_excerpt" => substr($pageThing->post_excerpt, $query !== "" ? strpos($pageThing->post_excerpt, $query) - 400 : 0, 800),
+                "post_excerpt" => $pageThing->post_excerpt,
             ));
         }
     }
     echo json_encode($posts);
     wp_die();
+}
+
+add_filter('the_content', 'filter_the_content_in_the_main_loop', 1);
+
+function filter_the_content_in_the_main_loop($content)
+{
+
+    global $post;
+    // Check if we're inside the main loop in a single Post.
+    if (get_post_type() === "archive" || get_post_type() === "attachment" && is_singular() && in_the_loop() && is_main_query()) {
+        return "<h2>Summary:</h2><code>" . $post->post_excerpt . "</code><br/> <hr/><br/><h2>Content:</h2>:" . $content;
+    }
+
+    return $content;
 }
