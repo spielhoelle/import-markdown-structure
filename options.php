@@ -8,6 +8,9 @@ Author: Thomas Kuhnert
 Author URI: https://tmy.io
 */
 include 'vendor/autoload.php';
+add_action('wp_enqueue_scripts', function () {
+    wp_enqueue_style('styles', plugin_dir_url(__FILE__) . 'style.css', array(), '1.1', 'all');
+});
 @ini_set('display_errors', 1);
 @ini_set('max_execution_time', '300'); //300 seconds = 5 minutes
 ini_set('memory_limit', '512M');
@@ -769,10 +772,10 @@ add_action('manage_pages_custom_column', function ($column_key, $post_id) {
     }
 }, 10, 2);
 
-//[import_markdown_structure_search]
+// [import_markdown_structure_search]
 function import_markdown_structure_search_func($atts)
 {
-    $html = '<form><input type="text" id="search-input" placeholder="Search..."></form><div id="search-results"></div>';
+    $html = '<form><input type="text" id="tmy-search-input" placeholder="Search..."></form><div id="tmy-search-results"></div>';
     return $html;
 }
 add_shortcode('import_markdown_structure_search', 'import_markdown_structure_search_func');
@@ -784,13 +787,13 @@ function my_ajax_without_file()
 { ?>
     <script type="text/javascript">
         jQuery(document).ready(function($) {
-            $('#search-input').on('input', function(e) {
+            $('#tmy-search-input').on('input', function(e) {
                 // $('#search-submit').on('click', function(e) {
                 // e.preventDefault()
                 ajaxurl = '<?php echo admin_url('admin-ajax.php') ?>'; // get ajaxurl
                 var data = {
                     'action': 'frontend_action_without_file', // your action name 
-                    // 'query': document.getElementById("search-input").value // some additional data to send
+                    // 'query': document.getElementById("tmy-search-input").value // some additional data to send
                     'query': e.target.value // some additional data to send
                 };
                 jQuery.ajax({
@@ -802,14 +805,20 @@ function my_ajax_without_file()
                         var resultsDiv = document.createElement('div')
                         response.map(post => {
                             var link = document.createElement('a');
+                            var postDiv = document.createElement('div');
+                            postDiv.classList.add("tmy-post-div")
                             var contentDiv = document.createElement('div');
+                            var excerptDiv = document.createElement('div');
                             link.innerHTML = post.post_title;
                             link.href = post.post_link;
-                            contentDiv.innerHTML = post.post_content.replace(e.target.value, `<code style="background-color: yellow;">${e.target.value}</code>`);
-                            resultsDiv.appendChild(link)
-                            resultsDiv.appendChild(contentDiv)
+                            contentDiv.innerHTML = `<b>Content:</b> ${post.post_content.replace(e.target.value, `<code style="background-color: yellow;">${e.target.value}</code>`)}`;
+                            excerptDiv.innerHTML = `<b>Excerpt:</b> ${post.post_excerpt.replace(e.target.value, `<code style="background-color: yellow;">${e.target.value}</code>`)}`;
+                            postDiv.appendChild(link)
+                            postDiv.appendChild(excerptDiv)
+                            postDiv.appendChild(contentDiv)
+                            resultsDiv.appendChild(postDiv)
                         })
-                        document.getElementById('search-results').innerHTML = resultsDiv.innerHTML
+                        document.getElementById('tmy-search-results').innerHTML = resultsDiv.innerHTML
                     }
                 });
             });
@@ -825,14 +834,16 @@ function frontend_action_without_file()
 {
     global $wpdb;
     $query = $_POST['query'];
-    $result = $wpdb->get_results("SELECT * FROM wp_posts WHERE post_content LIKE '%$query%'");
+    $result = $wpdb->get_results("SELECT * FROM wp_posts WHERE (post_type = 'archive' OR post_type = 'attachment') AND (post_content LIKE '%$query%' OR post_excerpt LIKE '%$query%') ");
     $posts = array();
     if ($result) {
         foreach ($result as $pageThing) {
             array_push($posts, array(
                 "post_link" => get_permalink($pageThing->ID),
                 "post_title" => $pageThing->post_title,
-                "post_content" => substr($pageThing->post_content,  strpos($pageThing->post_content, $query) - 100, 200),
+                "post_type" => $pageThing->post_type,
+                "post_content" => substr($pageThing->post_content, $query !== "" ? strpos($pageThing->post_content, $query) - 400 : 0, 800),
+                "post_excerpt" => substr($pageThing->post_excerpt, $query !== "" ? strpos($pageThing->post_excerpt, $query) - 400 : 0, 800),
             ));
         }
     }
