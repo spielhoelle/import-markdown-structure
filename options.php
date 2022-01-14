@@ -791,7 +791,7 @@ function my_ajax_without_file()
                 // $('#search-submit').on('click', function(e) {
                 // e.preventDefault()
                 ajaxurl = '<?php echo admin_url('admin-ajax.php') ?>'; // get ajaxurl
-                var data = {
+                const data = {
                     'action': 'frontend_action_without_file', // your action name 
                     // 'query': document.getElementById("tmy-search-input").value // some additional data to send
                     'query': e.target.value // some additional data to send
@@ -802,16 +802,16 @@ function my_ajax_without_file()
                     data: data,
                     success: function(resp) {
                         let response = JSON.parse(resp);
-                        var resultsDiv = document.createElement('div')
+                        const resultsDiv = document.createElement('div')
                         response.map(post => {
-                            var link = document.createElement('a');
-                            var postDiv = document.createElement('div');
+                            const link = document.createElement('a');
+                            const postDiv = document.createElement('div');
                             postDiv.classList.add("tmy-post-div")
-                            var contentDiv = document.createElement('div');
-                            var excerptDiv = document.createElement('div');
+                            const contentDiv = document.createElement('div');
+                            const excerptDiv = document.createElement('div');
                             link.innerHTML = post.post_title;
                             link.href = post.post_link;
-                            var regEx = new RegExp(e.target.value, "ig");
+                            const regEx = new RegExp(e.target.value, "ig");
                             contentDiv.innerHTML = `<b>Content:</b> ${post.post_content.replace(regEx, `<code style="background-color: yellow;">${e.target.value}</code>`)}`;
                             excerptDiv.innerHTML = `<b>Excerpt:</b> ${post.post_excerpt.toLowerCase().includes(e.target.value.toLowerCase()) ? post.post_excerpt.replace(regEx, `<code style="background-color: yellow;">${e.target.value}</code>`) : post.post_excerpt }`;
                             postDiv.appendChild(link)
