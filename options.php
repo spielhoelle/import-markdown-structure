@@ -786,8 +786,15 @@ add_action('wp_footer', 'my_ajax_without_file');
 function my_ajax_without_file()
 { ?>
     <script type="text/javascript">
+        function debounce(func) {
+            var timer;
+            return function(event) {
+                if (timer) clearTimeout(timer);
+                timer = setTimeout(func, 500, event);
+            };
+        }
         jQuery(document).ready(function($) {
-            $('#tmy-search-input').on('input', function(e) {
+            $('#tmy-search-input').on('input', debounce(function(e) {
                 // $('#search-submit').on('click', function(e) {
                 // e.preventDefault()
                 ajaxurl = '<?php echo admin_url('admin-ajax.php') ?>'; // get ajaxurl
@@ -801,28 +808,33 @@ function my_ajax_without_file()
                     type: 'POST',
                     data: data,
                     success: function(resp) {
-                        let response = JSON.parse(resp);
                         const resultsDiv = document.createElement('div')
-                        response.map(post => {
-                            const link = document.createElement('a');
-                            const postDiv = document.createElement('div');
-                            postDiv.classList.add("tmy-post-div")
-                            const contentDiv = document.createElement('div');
-                            const excerptDiv = document.createElement('div');
-                            link.innerHTML = post.post_title;
-                            link.href = post.post_link;
-                            const regEx = new RegExp(e.target.value, "ig");
-                            contentDiv.innerHTML = `<b>Content:</b> ${post.post_content.replace(regEx, `<code style="background-color: yellow;">${e.target.value}</code>`)}`;
-                            excerptDiv.innerHTML = `<b>Excerpt:</b> ${post.post_excerpt.toLowerCase().includes(e.target.value.toLowerCase()) ? post.post_excerpt.replace(regEx, `<code style="background-color: yellow;">${e.target.value}</code>`) : post.post_excerpt }`;
-                            postDiv.appendChild(link)
-                            postDiv.appendChild(excerptDiv)
-                            postDiv.appendChild(contentDiv)
-                            resultsDiv.appendChild(postDiv)
-                        })
+                        if(resp=== ""){
+                            resultsDiv.innerHTML = "No results found"
+                        } else {
+
+                            let response = JSON.parse(resp);
+                            response.map(post => {
+                                const link = document.createElement('a');
+                                const postDiv = document.createElement('div');
+                                postDiv.classList.add("tmy-post-div")
+                                const contentDiv = document.createElement('div');
+                                const excerptDiv = document.createElement('div');
+                                link.innerHTML = post.post_title;
+                                link.href = post.post_link;
+                                const regEx = new RegExp(e.target.value, "ig");
+                                contentDiv.innerHTML = `<b>Content:</b> ${post.post_content.replace(regEx, `<code style="background-color: yellow;">${e.target.value}</code>`)}`;
+                                excerptDiv.innerHTML = `<b>Excerpt:</b> ${post.post_excerpt.toLowerCase().includes(e.target.value.toLowerCase()) ? post.post_excerpt.replace(regEx, `<code style="background-color: yellow;">${e.target.value}</code>`) : post.post_excerpt }`;
+                                postDiv.appendChild(link)
+                                postDiv.appendChild(excerptDiv)
+                                postDiv.appendChild(contentDiv)
+                                resultsDiv.appendChild(postDiv)
+                            })
+                        }
                         document.getElementById('tmy-search-results').innerHTML = resultsDiv.innerHTML
                     }
                 });
-            });
+            }))
         })
     </script>
 <?php
