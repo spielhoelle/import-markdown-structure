@@ -812,7 +812,7 @@ function my_ajax_without_file()
                             link.innerHTML = post.post_title;
                             link.href = post.post_link;
                             contentDiv.innerHTML = `<b>Content:</b> ${post.post_content.replace(e.target.value, `<code style="background-color: yellow;">${e.target.value}</code>`)}`;
-                            excerptDiv.innerHTML = `<b>Excerpt:</b> ${post.post_excerpt.includes(data.query) ? post.post_excerpt.replace(e.target.value, `<code style="background-color: yellow;">${e.target.value}</code>`) : post.post_excerpt }`;
+                            excerptDiv.innerHTML = `<b>Excerpt:</b> ${post.post_excerpt.toLowerCase().includes(e.target.value.toLowerCase()) ? post.post_excerpt.replace(e.target.value.toLowerCase(), `<code style="background-color: yellow;">${e.target.value}</code>`) : post.post_excerpt }`;
                             postDiv.appendChild(link)
                             postDiv.appendChild(excerptDiv)
                             postDiv.appendChild(contentDiv)
@@ -833,8 +833,8 @@ add_action("wp_ajax_nopriv_frontend_action_without_file", "frontend_action_witho
 function frontend_action_without_file()
 {
     global $wpdb;
-    $query = $_POST['query'];
-    $result = $wpdb->get_results("SELECT * FROM wp_posts WHERE (post_type = 'archive' OR post_type = 'attachment') AND (post_content LIKE '%$query%' OR post_excerpt LIKE '%$query%') ");
+    $query = strtolower($_POST['query']);
+    $result = $wpdb->get_results("SELECT * FROM wp_posts WHERE (post_type = LOWER('archive') OR post_type = LOWER('attachment')) AND (post_content LIKE ('%$query%') OR post_excerpt LIKE ('%$query%')) ");
     $posts = array();
     if ($result) {
         foreach ($result as $pageThing) {
