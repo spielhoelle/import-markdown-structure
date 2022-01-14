@@ -811,8 +811,9 @@ function my_ajax_without_file()
                             var excerptDiv = document.createElement('div');
                             link.innerHTML = post.post_title;
                             link.href = post.post_link;
-                            contentDiv.innerHTML = `<b>Content:</b> ${post.post_content.replace(e.target.value, `<code style="background-color: yellow;">${e.target.value}</code>`)}`;
-                            excerptDiv.innerHTML = `<b>Excerpt:</b> ${post.post_excerpt.toLowerCase().includes(e.target.value.toLowerCase()) ? post.post_excerpt.replace(e.target.value.toLowerCase(), `<code style="background-color: yellow;">${e.target.value}</code>`) : post.post_excerpt }`;
+                            var regEx = new RegExp(e.target.value, "ig");
+                            contentDiv.innerHTML = `<b>Content:</b> ${post.post_content.replace(regEx, `<code style="background-color: yellow;">${e.target.value}</code>`)}`;
+                            excerptDiv.innerHTML = `<b>Excerpt:</b> ${post.post_excerpt.toLowerCase().includes(e.target.value.toLowerCase()) ? post.post_excerpt.replace(regEx, `<code style="background-color: yellow;">${e.target.value}</code>`) : post.post_excerpt }`;
                             postDiv.appendChild(link)
                             postDiv.appendChild(excerptDiv)
                             postDiv.appendChild(contentDiv)
