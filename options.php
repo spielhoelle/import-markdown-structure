@@ -790,7 +790,7 @@ function my_ajax_without_file()
             var timer;
             return function(event) {
                 if (timer) clearTimeout(timer);
-                timer = setTimeout(func, 500, event);
+                timer = setTimeout(func, 200, event);
             };
         }
         jQuery(document).ready(function($) {
@@ -809,10 +809,9 @@ function my_ajax_without_file()
                     data: data,
                     success: function(resp) {
                         const resultsDiv = document.createElement('div')
-                        if(resp=== ""){
+                        if (resp === "" || resp === "[]") {
                             resultsDiv.innerHTML = "No results found"
                         } else {
-
                             let response = JSON.parse(resp);
                             response.map(post => {
                                 const link = document.createElement('a');
@@ -823,8 +822,8 @@ function my_ajax_without_file()
                                 link.innerHTML = post.post_title;
                                 link.href = post.post_link;
                                 const regEx = new RegExp(e.target.value, "ig");
-                                contentDiv.innerHTML = `<b>Content:</b> ${post.post_content.replace(regEx, `<code style="background-color: yellow;">${e.target.value}</code>`)}`;
-                                excerptDiv.innerHTML = `<b>Excerpt:</b> ${post.post_excerpt.toLowerCase().includes(e.target.value.toLowerCase()) ? post.post_excerpt.replace(regEx, `<code style="background-color: yellow;">${e.target.value}</code>`) : post.post_excerpt }`;
+                                contentDiv.innerHTML = `<b>Content:</b> ${post.post_content.replace(/\n/,'').replace(regEx, `<code style="background-color: yellow;">${e.target.value}</code>`)}`;
+                                excerptDiv.innerHTML = `<b>Excerpt:</b> ${post.post_excerpt.replace(/\n/,'').toLowerCase().includes(e.target.value.toLowerCase()) ? post.post_excerpt.replace(regEx, `<code style="background-color: yellow;">${e.target.value}</code>`) : post.post_excerpt }`;
                                 postDiv.appendChild(link)
                                 postDiv.appendChild(excerptDiv)
                                 postDiv.appendChild(contentDiv)
@@ -847,7 +846,7 @@ function frontend_action_without_file()
 {
     global $wpdb;
     $query = strtolower($_POST['query']);
-    $result = $wpdb->get_results("SELECT * FROM wp_posts WHERE (post_type = LOWER('archive') OR post_type = LOWER('attachment')) AND (post_content LIKE ('%$query%') OR post_excerpt LIKE ('%$query%')) ");
+    $result = $wpdb->get_results("SELECT * FROM wp_posts WHERE (post_type = LOWER('archive') OR post_type = LOWER('attachment')) AND (post_content LIKE '%$query%' OR post_excerpt LIKE '%$query%') ");
     $posts = array();
     if ($result) {
         foreach ($result as $pageThing) {
@@ -855,7 +854,7 @@ function frontend_action_without_file()
                 "post_link" => get_permalink($pageThing->ID),
                 "post_title" => $pageThing->post_title,
                 "post_type" => $pageThing->post_type,
-                "post_content" => substr($pageThing->post_content, $query !== "" ? strpos($pageThing->post_content, $query) - 400 : 0, 800),
+                "post_content" => substr($pageThing->post_content, $query !== "" ? strpos($pageThing->post_content, $query) - 800 : 0, 1200),
                 "post_excerpt" => $pageThing->post_excerpt,
             ));
         }
