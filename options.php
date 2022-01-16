@@ -799,7 +799,7 @@ function my_ajax_without_file()
                 // e.preventDefault()
                 ajaxurl = '<?php echo admin_url('admin-ajax.php') ?>'; // get ajaxurl
                 const data = {
-                    'action': 'frontend_action_without_file', // your action name 
+                    'action': 'frontend_searchaction', // your action name 
                     // 'query': document.getElementById("tmy-search-input").value // some additional data to send
                     'query': e.target.value // some additional data to send
                 };
@@ -818,14 +818,16 @@ function my_ajax_without_file()
                                 const postDiv = document.createElement('div');
                                 postDiv.classList.add("tmy-post-div")
                                 const contentDiv = document.createElement('div');
-                                const excerptDiv = document.createElement('div');
                                 link.innerHTML = post.post_title;
                                 link.href = post.post_link;
                                 const regEx = new RegExp(e.target.value, "ig");
-                                contentDiv.innerHTML = `<b>Content:</b> ${post.post_content.replace(/\n/,'').replace(regEx, `<code style="background-color: yellow;">${e.target.value}</code>`)}`;
-                                excerptDiv.innerHTML = `<b>Excerpt:</b> ${post.post_excerpt.replace(/\n/,'').toLowerCase().includes(e.target.value.toLowerCase()) ? post.post_excerpt.replace(regEx, `<code style="background-color: yellow;">${e.target.value}</code>`) : post.post_excerpt }`;
+                                contentDiv.innerHTML = `<b>Content:</b><br/> ${post.post_content.replace(regEx, `<code style="background-color: yellow;">${e.target.value}</code>`)}`;
                                 postDiv.appendChild(link)
-                                postDiv.appendChild(excerptDiv)
+                                if (post.post_excerpt !== "") {
+                                    const excerptDiv = document.createElement('div');
+                                    excerptDiv.innerHTML = `<b>Excerpt:</b><br/> ${post.post_excerpt.toLowerCase().includes(e.target.value.toLowerCase()) ? post.post_excerpt.replace(regEx, `<code style="background-color: yellow;">${e.target.value}</code>`) : post.post_excerpt }`;
+                                    postDiv.appendChild(excerptDiv)
+                                }
                                 postDiv.appendChild(contentDiv)
                                 resultsDiv.appendChild(postDiv)
                             })
@@ -839,23 +841,34 @@ function my_ajax_without_file()
 <?php
 }
 
-add_action("wp_ajax_frontend_action_without_file", "frontend_action_without_file");
-add_action("wp_ajax_nopriv_frontend_action_without_file", "frontend_action_without_file");
+add_action("wp_ajax_frontend_searchaction", "frontend_searchaction");
+add_action("wp_ajax_nopriv_frontend_searchaction", "frontend_searchaction");
 
-function frontend_action_without_file()
+function frontend_searchaction()
 {
     global $wpdb;
     $query = strtolower($_POST['query']);
     $result = $wpdb->get_results("SELECT * FROM wp_posts WHERE (post_type = LOWER('archive') OR post_type = LOWER('attachment')) AND (post_content LIKE '%$query%' OR post_excerpt LIKE '%$query%') ");
     $posts = array();
     if ($result) {
-        foreach ($result as $pageThing) {
+        foreach ($result as $queriedPost) {
+            $html = $queriedPost->post_content;
+            $lastPos = 0;
+            $positions = array();
+            while (($lastPos = strpos($html, $query, $lastPos)) !== false) {
+                $positions[] = $lastPos;
+                $lastPos = $lastPos + strlen($query);
+            }
+            $search_matches = "";
+            foreach ($positions as $value) {
+                $search_matches = $search_matches . "<i>" . $value . "</i>: ...". substr($queriedPost->post_content, $value > 80 ? $value - 80 : 0, strlen($query) + 100) . "... <br/>";
+            }
             array_push($posts, array(
-                "post_link" => get_permalink($pageThing->ID),
-                "post_title" => $pageThing->post_title,
-                "post_type" => $pageThing->post_type,
-                "post_content" => substr($pageThing->post_content, $query !== "" ? strpos($pageThing->post_content, $query) - 800 : 0, 1200),
-                "post_excerpt" => $pageThing->post_excerpt,
+                "post_link" => get_permalink($queriedPost->ID),
+                "post_title" => $queriedPost->post_title,
+                "post_type" => $queriedPost->post_type,
+                "post_content" => $search_matches,
+                "post_excerpt" => strlen($queriedPost->post_excerpt) > 400 ? substr($queriedPost->post_excerpt, 0, 400) . "..." : $queriedPost->post_excerpt,
             ));
         }
     }
