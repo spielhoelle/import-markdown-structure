@@ -9,7 +9,7 @@ Author URI: https://tmy.io
 */
 include 'vendor/autoload.php';
 add_action('wp_enqueue_scripts', function () {
-    wp_enqueue_style('styles', plugin_dir_url(__FILE__) . 'style.css', array(), '1.1', 'all');
+    wp_enqueue_style('styles', plugin_dir_url(__FILE__) . 'style.css', array(), '1.13', 'all');
 });
 @ini_set('display_errors', 1);
 @ini_set('max_execution_time', '300'); //300 seconds = 5 minutes
@@ -775,7 +775,7 @@ add_action('manage_pages_custom_column', function ($column_key, $post_id) {
 // [import_markdown_structure_search]
 function import_markdown_structure_search_func($atts)
 {
-    $html = '<form><input type="text" id="tmy-search-input" placeholder="Search..."></form><div id="tmy-search-results"></div>';
+    $html = '<form class="position-relative"><input type="text" id="tmy-search-input" placeholder="Search..."><div id="tmy-search-results-spinner" class="d-none"><span>+</span></div></form><div id="tmy-search-results"></div>';
     return $html;
 }
 add_shortcode('import_markdown_structure_search', 'import_markdown_structure_search_func');
@@ -803,16 +803,19 @@ function my_ajax_without_file()
                     // 'query': document.getElementById("tmy-search-input").value // some additional data to send
                     'query': e.target.value // some additional data to send
                 };
+                const spinner = document.getElementById('tmy-search-results-spinner')
+                spinner.classList.remove('d-none')
                 jQuery.ajax({
                     url: ajaxurl, // this will point to admin-ajax.php
                     type: 'POST',
                     data: data,
                     success: function(resp) {
+                        let response = JSON.parse(resp);
                         const resultsDiv = document.createElement('div')
-                        if (resp === "" || resp === "[]") {
+                        if (response.posts.length === 0) {
                             resultsDiv.innerHTML = "No results found"
+                            spinner.classList.add('d-none')
                         } else {
-                            let response = JSON.parse(resp);
                             response.posts.map(post => {
                                 const link = document.createElement('a');
                                 const postDiv = document.createElement('div');
@@ -831,8 +834,9 @@ function my_ajax_without_file()
                                 postDiv.appendChild(contentDiv)
                                 resultsDiv.appendChild(postDiv)
                             })
-                            document.getElementById('tmy-search-results').innerHTML = `Matches: ${ response.matches} <br/><br/>${resultsDiv.innerHTML}`
+                            spinner.classList.add('d-none')
                         }
+                        document.getElementById('tmy-search-results').innerHTML = `Matches: ${ response.matches} <br/><br/>${resultsDiv.innerHTML}`
                     }
                 });
             }))

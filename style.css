@@ -7,3 +7,36 @@
 	padding: 20px;
 	margin-bottom: 20px;
 }
+
+.d-none {
+	display: none !important;
+}
+
+.position-relative {
+	position: relative;
+}
+
+#tmy-search-results-spinner {
+	width: 4rem;
+	height: 4rem;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	position: absolute;
+	top: 0;
+	right: 0;
+	font-size: 4rem;
+	animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+	0% {
+		-webkit-transform: rotate(0deg);
+		transform: rotate(0deg);
+	}
+
+	100% {
+		-webkit-transform: rotate(360deg);
+		transform: rotate(360deg);
+	}
+}
