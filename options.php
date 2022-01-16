@@ -813,7 +813,7 @@ function my_ajax_without_file()
                             resultsDiv.innerHTML = "No results found"
                         } else {
                             let response = JSON.parse(resp);
-                            response.map(post => {
+                            response.posts.map(post => {
                                 const link = document.createElement('a');
                                 const postDiv = document.createElement('div');
                                 postDiv.classList.add("tmy-post-div")
@@ -831,8 +831,8 @@ function my_ajax_without_file()
                                 postDiv.appendChild(contentDiv)
                                 resultsDiv.appendChild(postDiv)
                             })
+                            document.getElementById('tmy-search-results').innerHTML = `Matches: ${ response.matches} <br/><br/>${resultsDiv.innerHTML}`
                         }
-                        document.getElementById('tmy-search-results').innerHTML = resultsDiv.innerHTML
                     }
                 });
             }))
@@ -843,13 +843,24 @@ function my_ajax_without_file()
 
 add_action("wp_ajax_frontend_searchaction", "frontend_searchaction");
 add_action("wp_ajax_nopriv_frontend_searchaction", "frontend_searchaction");
-
+function utf8ize($d)
+{
+    if (is_array($d)) {
+        foreach ($d as $k => $v) {
+            $d[$k] = utf8ize($v);
+        }
+    } else if (is_string($d)) {
+        return utf8_encode($d);
+    }
+    return $d;
+}
 function frontend_searchaction()
 {
     global $wpdb;
     $query = strtolower($_POST['query']);
     $result = $wpdb->get_results("SELECT * FROM wp_posts WHERE (post_type = LOWER('archive') OR post_type = LOWER('attachment')) AND (post_content LIKE '%$query%' OR post_excerpt LIKE '%$query%') ");
     $posts = array();
+    $matches = 0;
     if ($result) {
         foreach ($result as $queriedPost) {
             $html = $queriedPost->post_content;
@@ -861,7 +872,8 @@ function frontend_searchaction()
             }
             $search_matches = "";
             foreach ($positions as $value) {
-                $search_matches = $search_matches . "<i>" . $value . "</i>: ...". substr($queriedPost->post_content, $value > 80 ? $value - 80 : 0, strlen($query) + 100) . "... <br/>";
+                $matches++;
+                $search_matches = $search_matches . "<i>Line " . $value . "</i>: ..." . substr($queriedPost->post_content, $value > 80 ? $value - 80 : 0, strlen($query) + 100) . "... <br/>";
             }
             array_push($posts, array(
                 "post_link" => get_permalink($queriedPost->ID),
@@ -872,7 +884,7 @@ function frontend_searchaction()
             ));
         }
     }
-    echo json_encode($posts);
+    echo json_encode(array("matches" => $matches, "posts" => utf8ize($posts)));
     wp_die();
 }
 
