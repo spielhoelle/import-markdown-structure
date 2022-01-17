@@ -793,10 +793,14 @@ function my_ajax_without_file()
                 timer = setTimeout(func, 200, event);
             };
         }
+
+        function showAll(e) {
+            Array.from(event.target.parentElement.querySelectorAll('.d-none')).map(button => button.classList.remove('d-none'))
+        }
         jQuery(document).ready(function($) {
             $('#tmy-search-input').on('input', debounce(function(e) {
                 // $('#search-submit').on('click', function(e) {
-                // e.preventDefault()
+                e.preventDefault()
                 ajaxurl = '<?php echo admin_url('admin-ajax.php') ?>'; // get ajaxurl
                 const data = {
                     'action': 'frontend_searchaction', // your action name 
@@ -810,6 +814,7 @@ function my_ajax_without_file()
                     type: 'POST',
                     data: data,
                     success: function(resp) {
+                        console.log('resp', resp);
                         let response = JSON.parse(resp);
                         const resultsDiv = document.createElement('div')
                         if (response.posts.length === 0) {
@@ -875,9 +880,13 @@ function frontend_searchaction()
                 $lastPos = $lastPos + strlen($query);
             }
             $search_matches = "";
-            foreach ($positions as $value) {
+            foreach ($positions as $key => $value) {
                 $matches++;
-                $search_matches = $search_matches . "<i>Line " . $value . "</i>: ..." . substr($queriedPost->post_content, $value > 80 ? $value - 80 : 0, strlen($query) + 100) . "... <br/>";
+                $search_matches = $search_matches . "<div class='" . ($key > 5 ? "d-none'" : "") . "'><i>" . $key . "Line " . $value . "</i>: ... " . substr($queriedPost->post_content, $value > 80 ? $value - 80 : 0, strlen($query) + 100) . " ... </div>";
+            }
+            if (count($positions) > 10) {
+                $remaining = count($positions) - 10;
+                $search_matches = $search_matches . "<button class='btn btn-primary' style='margin-top: 20px;' onclick='showAll()'>Show " . $remaining . " more</button>";
             }
             array_push($posts, array(
                 "post_link" => get_permalink($queriedPost->ID),
