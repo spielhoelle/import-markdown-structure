@@ -794,10 +794,12 @@ function my_ajax_without_file()
             };
         }
 
-        function showAll(e) {
-            Array.from(event.target.parentElement.querySelectorAll('.d-none')).map(button => button.classList.remove('d-none'))
-        }
         jQuery(document).ready(function($) {
+            document.addEventListener('click', (event2) => {
+                if (event2.target.classList.contains('tmy_show_all_button')) {
+                    Array.from(event2.target.parentElement.querySelectorAll('.d-none')).map(button => button.classList.remove('d-none'))
+                }
+            })
             $('#tmy-search-input').on('input', debounce(function(e) {
                 // $('#search-submit').on('click', function(e) {
                 e.preventDefault()
@@ -886,7 +888,7 @@ function frontend_searchaction()
             }
             if (count($positions) > 10) {
                 $remaining = count($positions) - 10;
-                $search_matches = $search_matches . "<button class='btn btn-primary' style='margin-top: 20px;' onclick='showAll()'>Show " . $remaining . " more</button>";
+                $search_matches = $search_matches . "<button class='btn btn-primary tmy_show_all_button' style='margin-top: 20px;'>Show " . $remaining . " more</button>";
             }
             array_push($posts, array(
                 "post_link" => get_permalink($queriedPost->ID),
