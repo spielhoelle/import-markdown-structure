@@ -916,3 +916,15 @@ function filter_the_content_in_the_main_loop($content)
 
     return $content;
 }
+
+function tmy_add_categories_to_attachments()
+{
+    register_taxonomy_for_object_type('category', 'attachment');
+}
+add_action('init', 'tmy_add_categories_to_attachments');
+// apply tags to attachments
+function tmy_add_tags_to_attachments()
+{
+    register_taxonomy_for_object_type('post_tag', 'attachment');
+}
+add_action('init', 'tmy_add_tags_to_attachments');
