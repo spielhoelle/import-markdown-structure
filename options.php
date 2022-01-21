@@ -793,30 +793,26 @@ function my_ajax_without_file()
                 timer = setTimeout(func, 200, event);
             };
         }
-
+        const urlParams = new URLSearchParams(window.location.search);
         jQuery(document).ready(function($) {
             document.addEventListener('click', (event2) => {
                 if (event2.target.classList.contains('tmy_show_all_button')) {
                     Array.from(event2.target.parentElement.querySelectorAll('.d-none')).map(button => button.classList.remove('d-none'))
                 }
             })
-            $('#tmy-search-input').on('input', debounce(function(e) {
-                // $('#search-submit').on('click', function(e) {
-                e.preventDefault()
-                ajaxurl = '<?php echo admin_url('admin-ajax.php') ?>'; // get ajaxurl
+            function render(query) {
+                ajaxurl = '<?php echo admin_url('admin-ajax.php') ?>'; 
                 const data = {
                     'action': 'frontend_searchaction', // your action name 
-                    // 'query': document.getElementById("tmy-search-input").value // some additional data to send
-                    'query': e.target.value // some additional data to send
+                    'query': query 
                 };
                 const spinner = document.getElementById('tmy-search-results-spinner')
                 spinner.classList.remove('d-none')
                 jQuery.ajax({
-                    url: ajaxurl, // this will point to admin-ajax.php
+                    url: ajaxurl,
                     type: 'POST',
                     data: data,
                     success: function(resp) {
-                        console.log('resp', resp);
                         let response = JSON.parse(resp);
                         const resultsDiv = document.createElement('div')
                         if (response.posts.length === 0) {
@@ -830,12 +826,12 @@ function my_ajax_without_file()
                                 const contentDiv = document.createElement('div');
                                 link.innerHTML = post.post_title;
                                 link.href = post.post_link;
-                                const regEx = new RegExp(e.target.value, "ig");
-                                contentDiv.innerHTML = `<b>Content:</b><br/> ${post.post_content.replace(regEx, `<code style="background-color: yellow;">${e.target.value}</code>`)}`;
+                                const regEx = new RegExp(query, "ig");
+                                contentDiv.innerHTML = `<b>Content:</b><br/> ${post.post_content.replace(regEx, `<code style="background-color: yellow;">${query}</code>`)}`;
                                 postDiv.appendChild(link)
                                 if (post.post_excerpt !== "") {
                                     const excerptDiv = document.createElement('div');
-                                    excerptDiv.innerHTML = `<b>Excerpt:</b><br/> ${post.post_excerpt.toLowerCase().includes(e.target.value.toLowerCase()) ? post.post_excerpt.replace(regEx, `<code style="background-color: yellow;">${e.target.value}</code>`) : post.post_excerpt }`;
+                                    excerptDiv.innerHTML = `<b>Excerpt:</b><br/> ${post.post_excerpt.toLowerCase().includes(query.toLowerCase()) ? post.post_excerpt.replace(regEx, `<code style="background-color: yellow;">${query}</code>`) : post.post_excerpt }`;
                                     postDiv.appendChild(excerptDiv)
                                 }
                                 postDiv.appendChild(contentDiv)
@@ -845,8 +841,18 @@ function my_ajax_without_file()
                         }
                         document.getElementById('tmy-search-results').innerHTML = `Matches: ${ response.matches} <br/><br/>${resultsDiv.innerHTML}`
                     }
-                });
-            }))
+                })
+            }
+            $('#tmy-search-input').on('input', function(e) {
+                e.preventDefault()
+                urlParams.set('query', e.target.value);
+                window.history.pushState({}, "search", "?" + urlParams.toString());
+                debounce(render(e.target.value))
+            });
+            if (urlParams.get('query')) {
+                document.getElementById('tmy-search-input').value = urlParams.get('query')
+                debounce(render(urlParams.get('query')))
+            }
         })
     </script>
 <?php
