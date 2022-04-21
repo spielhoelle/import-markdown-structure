@@ -319,8 +319,29 @@ function get_pdf_textcontent($id, $return = true)
     // Parse pdf file and build necessary objects.
     $file_parts = pathinfo($filepath);
     if ($file_parts['extension'] === 'pdf') {
-        $parser = new \Smalot\PdfParser\Parser();
+        $config = new \Smalot\PdfParser\Config();
+        // $config->setFontSpaceLimit(-60);
+        $config->setRetainImageContent(false);
+        // var_dump($config);
+        $config->setDecodeMemoryLimit(100000);
+        $parser = new \Smalot\PdfParser\Parser([], $config);
         $pdf    = $parser->parseFile($filepath);
+        // $raw_text = $pdf->getPages()[0]->getText() . "\n\r\n\r";
+        // $raw_text .= $pdf->getPages()[1]->getText() . "\n\r\n\r";
+        // $raw_text .= $pdf->getPages()[2]->getText() . "\n\r\n\r";
+        // $raw_text .= $pdf->getPages()[3]->getText() . "\n\r\n\r";
+        // $raw_text .= $pdf->getPages()[4]->getText() . "\n\r\n\r";
+        // $raw_text .= $pdf->getPages()[5]->getText() . "\n\r\n\r";
+        // $raw_text .= $pdf->getPages()[6]->getText() . "\n\r\n\r";
+        // $raw_text .= $pdf->getPages()[7]->getText() . "\n\r\n\r";
+        // $raw_text .= $pdf->getPages()[8]->getText() . "\n\r\n\r";
+        // var_dump($raw_text);
+
+
+
+
+
+
         $raw_text = $pdf->getText();
         $text_content = $raw_text;
         // Retrieve all details from the pdf file.
@@ -485,7 +506,7 @@ function tmy_send_to_ai($id, $return = true)
         var_dump($json);
     } else {
         foreach ($json->choices as $choice) {
-            $post_data .= $choice->text . "\n\r";
+            $post_data .= $choice->text . "\n\r\n\r";
         }
         $data = array(
             'ID' => $id,
