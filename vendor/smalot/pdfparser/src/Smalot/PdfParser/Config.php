@@ -41,6 +41,11 @@ class Config
     private $fontSpaceLimit = -50;
 
     /**
+     * @var string
+     */
+    private $horizontalOffset = ' ';
+
+    /**
      * Represents: (NUL, HT, LF, FF, CR, SP)
      *
      * @var string
@@ -61,6 +66,20 @@ class Config
      */
     private $retainImageContent = true;
 
+    /**
+     * Memory limit to use when de-compressing files, in bytes.
+     *
+     * @var int
+     */
+    private $decodeMemoryLimit = 0;
+
+    /**
+     * Whether to include font id and size in dataTm array
+     *
+     * @var bool
+     */
+    private $dataTmFontInfoHasToBeIncluded = false;
+
     public function getFontSpaceLimit()
     {
         return $this->fontSpaceLimit;
@@ -69,6 +88,16 @@ class Config
     public function setFontSpaceLimit($value)
     {
         $this->fontSpaceLimit = $value;
+    }
+
+    public function getHorizontalOffset(): string
+    {
+        return $this->horizontalOffset;
+    }
+
+    public function setHorizontalOffset($value): void
+    {
+        $this->horizontalOffset = $value;
     }
 
     public function getPdfWhitespaces(): string
@@ -99,5 +128,25 @@ class Config
     public function setRetainImageContent(bool $retainImageContent): void
     {
         $this->retainImageContent = $retainImageContent;
+    }
+
+    public function getDecodeMemoryLimit(): int
+    {
+        return $this->decodeMemoryLimit;
+    }
+
+    public function setDecodeMemoryLimit(int $decodeMemoryLimit): void
+    {
+        $this->decodeMemoryLimit = $decodeMemoryLimit;
+    }
+
+    public function getDataTmFontInfoHasToBeIncluded(): bool
+    {
+        return $this->dataTmFontInfoHasToBeIncluded;
+    }
+
+    public function setDataTmFontInfoHasToBeIncluded(bool $dataTmFontInfoHasToBeIncluded): void
+    {
+        $this->dataTmFontInfoHasToBeIncluded = $dataTmFontInfoHasToBeIncluded;
     }
 }

@@ -1,8 +1,15 @@
 # Developers
 
+Here you will find information about our development tools and how to use them.
+
 ## .editorconfig
 
 Please make sure your editor uses our `.editorconfig` file. It contains rules about our coding styles.
+
+## GitHub Action Workflows
+
+We use GitHub Actions to run our continuous integration as well as other tasks after pushing changes.
+You will find related files in `.github/workflows/`.
 
 ## Development Tools and Tests
 
@@ -11,13 +18,17 @@ Tests are written using PHPUnit.
 
 To install (and update) development tools like PHPUnit or PHP-CS-Fixer run:
 
-> make install-dev-tools
+```bash
+make install-dev-tools
+```
 
 Development tools are getting installed in `dev-tools/vendor`.
 Please check `dev-tools/composer.json` for more information about versions etc.
-To run a tool manually you use `dev-tools/vendor/bin`, for instance:
+To run a tool manually, you use `dev-tools/vendor/bin`, for instance:
 
-> dev-tools/vendor/bin/php-cs-fixer fix --verbose --dry-run
+```bash
+dev-tools/vendor/bin/php-cs-fixer fix --verbose --dry-run
+```
 
 Below are a few shortcuts to improve your developer experience.
 
@@ -25,16 +36,22 @@ Below are a few shortcuts to improve your developer experience.
 
 To run all tests run:
 
-> make run-phpunit
+```bash
+make run-phpunit
+```
 
 ### PHP-CS-Fixer
 
-To check coding styles run:
+To check coding styles, run:
 
-> make run-php-cs-fixer
+```bash
+make run-php-cs-fixer
+```
 
 ### PHPStan
 
-To run a static code analysis use:
+To run a static code analysis, use:
 
-> make run-phpstan
+```bash
+make run-phpstan
+```

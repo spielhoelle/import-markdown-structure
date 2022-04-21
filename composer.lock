@@ -4,23 +4,24 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "3ffbe28fb745b145fa2fcd19500ebf5e",
+    "content-hash": "e6d805d787ba34faf8116943cc3c004d",
     "packages": [
         {
             "name": "smalot/pdfparser",
-            "version": "v2.0.0",
+            "version": "v2.2.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/smalot/pdfparser.git",
-                "reference": "4d6864a70bc61068a240a72a4198588728b2cefc"
+                "reference": "193515a64fb979aff1786b09d5960797db2f3b0a"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/smalot/pdfparser/zipball/4d6864a70bc61068a240a72a4198588728b2cefc",
-                "reference": "4d6864a70bc61068a240a72a4198588728b2cefc",
+                "url": "https://api.github.com/repos/smalot/pdfparser/zipball/193515a64fb979aff1786b09d5960797db2f3b0a",
+                "reference": "193515a64fb979aff1786b09d5960797db2f3b0a",
                 "shasum": ""
             },
             "require": {
+                "ext-iconv": "*",
                 "ext-zlib": "*",
                 "php": ">=7.1",
                 "symfony/polyfill-mbstring": "^1.18"
@@ -52,9 +53,9 @@
             ],
             "support": {
                 "issues": "https://github.com/smalot/pdfparser/issues",
-                "source": "https://github.com/smalot/pdfparser/tree/v2.0.0"
+                "source": "https://github.com/smalot/pdfparser/tree/v2.2.0"
             },
-            "time": "2021-10-18T05:32:02+00:00"
+            "time": "2022-04-04T10:25:03+00:00"
         },
         {
             "name": "symfony/polyfill-mbstring",
@@ -145,5 +146,5 @@
     "prefer-lowest": false,
     "platform": [],
     "platform-dev": [],
-    "plugin-api-version": "2.1.0"
+    "plugin-api-version": "2.3.0"
 }

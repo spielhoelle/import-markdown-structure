@@ -87,9 +87,19 @@ class PDFObject
     {
     }
 
+    public function getDocument(): Document
+    {
+        return $this->document;
+    }
+
     public function getHeader(): ?Header
     {
         return $this->header;
+    }
+
+    public function getConfig(): ?Config
+    {
+        return $this->config;
     }
 
     /**
@@ -280,8 +290,7 @@ class PDFObject
                                 $current_position_td['x']
                             )
                         ) {
-                            // horizontal offset
-                            $text .= ' ';
+                            $text .= $this->config->getHorizontalOffset();
                         }
                         $current_position_td = ['x' => $x, 'y' => $y];
                         break;
