@@ -319,13 +319,24 @@ function get_pdf_textcontent($id, $return = true)
     // Parse pdf file and build necessary objects.
     $file_parts = pathinfo($filepath);
     if ($file_parts['extension'] === 'pdf') {
-        $config = new \Smalot\PdfParser\Config();
-        // $config->setFontSpaceLimit(-60);
-        $config->setRetainImageContent(false);
-        // var_dump($config);
-        $config->setDecodeMemoryLimit(100000);
-        $parser = new \Smalot\PdfParser\Parser([], $config);
-        $pdf    = $parser->parseFile($filepath);
+    $read = "";
+
+    $handle = popen( __DIR__ . '/' . 'tensorflow.py ' . $filepath, 'r' );
+    while ( ! feof( $handle ) )
+    {
+        $read .= fread( $handle, 2096 );
+    }
+
+    pclose( $handle );
+
+    return $read;
+        // $config = new \Smalot\PdfParser\Config();
+        // // $config->setFontSpaceLimit(-60);
+        // $config->setRetainImageContent(false);
+        // // var_dump($config);
+        // $config->setDecodeMemoryLimit(100000);
+        // $parser = new \Smalot\PdfParser\Parser([], $config);
+        // $pdf    = $parser->parseFile($filepath);
         // $raw_text = $pdf->getPages()[0]->getText() . "\n\r\n\r";
         // $raw_text .= $pdf->getPages()[1]->getText() . "\n\r\n\r";
         // $raw_text .= $pdf->getPages()[2]->getText() . "\n\r\n\r";
