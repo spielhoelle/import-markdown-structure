@@ -7,6 +7,9 @@ Version: 1
 Author: Thomas Kuhnert
 Author URI: https://tmy.io
 */
+
+use thiagoalessio\TesseractOCR\TesseractOCR;
+
 include 'vendor/autoload.php';
 add_action('wp_enqueue_scripts', function () {
     wp_enqueue_style('styles', plugin_dir_url(__FILE__) . 'style.css', array(), '1.13', 'all');
@@ -319,51 +322,20 @@ function get_pdf_textcontent($id, $return = true)
     // Parse pdf file and build necessary objects.
     $file_parts = pathinfo($filepath);
     if ($file_parts['extension'] === 'pdf') {
-        $config = new \Smalot\PdfParser\Config();
-        // $config->setFontSpaceLimit(-60);
-        $config->setRetainImageContent(false);
-        // var_dump($config);
-        $config->setDecodeMemoryLimit(100000);
-        $parser = new \Smalot\PdfParser\Parser([], $config);
-        $pdf    = $parser->parseFile($filepath);
-        // $raw_text = $pdf->getPages()[0]->getText() . "\n\r\n\r";
-        // $raw_text .= $pdf->getPages()[1]->getText() . "\n\r\n\r";
-        // $raw_text .= $pdf->getPages()[2]->getText() . "\n\r\n\r";
-        // $raw_text .= $pdf->getPages()[3]->getText() . "\n\r\n\r";
-        // $raw_text .= $pdf->getPages()[4]->getText() . "\n\r\n\r";
-        // $raw_text .= $pdf->getPages()[5]->getText() . "\n\r\n\r";
-        // $raw_text .= $pdf->getPages()[6]->getText() . "\n\r\n\r";
-        // $raw_text .= $pdf->getPages()[7]->getText() . "\n\r\n\r";
-        // $raw_text .= $pdf->getPages()[8]->getText() . "\n\r\n\r";
-        // var_dump($raw_text);
-
-
-
-
-
-
-        $raw_text = $pdf->getText();
-        $text_content = $raw_text;
-        // Retrieve all details from the pdf file.
-        // $details  = $pdf->getDetails();
-        // Loop over each property to extract values (string or array).
-        // $meta_accumulation = $filepath . "\n";
-        // foreach ($details as $property => $value) {
-        //     if (is_array($value)) {
-        //         $value = implode(', ', $value);
-        //     }
-        //     $meta_accumulation += $property . ' => ' . $value . "\n";
-        // }
-        // $details  = $pdf->getDetails();
-        // $meta = "Meta: \n\r";
-        // foreach ($details as $property => $value) {
-        //     if (is_array($value)) {
-        //         $value = implode(', ', $value);
-        //     }
-        //     $meta .= $property . ' => ' . $value . "\n";
-        // }
-        // $result = $meta . "\n\rTextcontent: \n\r" . str_replace("\t", '', $text_content);
-
+        // Convert to image and save to ./tmp
+        $command = 'convert -density 150 ' . $filepath . ' -quality 90 ' . plugin_dir_path(__DIR__) . 'import-markdown-structure/tmp/output.jpg';
+        exec($command, $output, $retval);
+        $files = scandir(__DIR__ . '/tmp', 1);
+        foreach (array_splice($files, 0, 4) as $property => $file) {
+            if ($file != "." && $file != "..") {
+                echo "\n\r";
+                $tmp_file = __DIR__ . '/tmp/' . $file;
+                // OCR
+                echo (new TesseractOCR($tmp_file))->run();
+                // delete tmp file
+                unlink($tmp_file); // delete file
+            }
+        }
     }
     if ($file_parts['extension'] === 'docx') {
         $content = '';
@@ -821,11 +793,12 @@ function my_ajax_without_file()
                     Array.from(event2.target.parentElement.querySelectorAll('.d-none')).map(button => button.classList.remove('d-none'))
                 }
             })
+
             function render(query) {
-                ajaxurl = '<?php echo admin_url('admin-ajax.php') ?>'; 
+                ajaxurl = '<?php echo admin_url('admin-ajax.php') ?>';
                 const data = {
                     'action': 'frontend_searchaction', // your action name 
-                    'query': query 
+                    'query': query
                 };
                 const spinner = document.getElementById('tmy-search-results-spinner')
                 spinner.classList.remove('d-none')

@@ -6,31 +6,17 @@ namespace Composer\Autoload;
 
 class ComposerStaticInit4f442557851e0b14efaee0027401b3bd
 {
-    public static $files = array (
-        '0e6d7bf4a5811bfa5cf40c5ccd6fae6a' => __DIR__ . '/..' . '/symfony/polyfill-mbstring/bootstrap.php',
-    );
-
     public static $prefixLengthsPsr4 = array (
-        'S' => 
+        't' => 
         array (
-            'Symfony\\Polyfill\\Mbstring\\' => 26,
+            'thiagoalessio\\TesseractOCR\\' => 27,
         ),
     );
 
     public static $prefixDirsPsr4 = array (
-        'Symfony\\Polyfill\\Mbstring\\' => 
+        'thiagoalessio\\TesseractOCR\\' => 
         array (
-            0 => __DIR__ . '/..' . '/symfony/polyfill-mbstring',
-        ),
-    );
-
-    public static $prefixesPsr0 = array (
-        'S' => 
-        array (
-            'Smalot\\PdfParser\\' => 
-            array (
-                0 => __DIR__ . '/..' . '/smalot/pdfparser/src',
-            ),
+            0 => __DIR__ . '/..' . '/thiagoalessio/tesseract_ocr/src',
         ),
     );
 
@@ -43,7 +29,6 @@ class ComposerStaticInit4f442557851e0b14efaee0027401b3bd
         return \Closure::bind(function () use ($loader) {
             $loader->prefixLengthsPsr4 = ComposerStaticInit4f442557851e0b14efaee0027401b3bd::$prefixLengthsPsr4;
             $loader->prefixDirsPsr4 = ComposerStaticInit4f442557851e0b14efaee0027401b3bd::$prefixDirsPsr4;
-            $loader->prefixesPsr0 = ComposerStaticInit4f442557851e0b14efaee0027401b3bd::$prefixesPsr0;
             $loader->classMap = ComposerStaticInit4f442557851e0b14efaee0027401b3bd::$classMap;
 
         }, null, ClassLoader::class);
