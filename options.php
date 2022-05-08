@@ -319,51 +319,15 @@ function get_pdf_textcontent($id, $return = true)
     // Parse pdf file and build necessary objects.
     $file_parts = pathinfo($filepath);
     if ($file_parts['extension'] === 'pdf') {
-        $config = new \Smalot\PdfParser\Config();
-        // $config->setFontSpaceLimit(-60);
-        $config->setRetainImageContent(false);
-        // var_dump($config);
-        $config->setDecodeMemoryLimit(100000);
-        $parser = new \Smalot\PdfParser\Parser([], $config);
-        $pdf    = $parser->parseFile($filepath);
-        // $raw_text = $pdf->getPages()[0]->getText() . "\n\r\n\r";
-        // $raw_text .= $pdf->getPages()[1]->getText() . "\n\r\n\r";
-        // $raw_text .= $pdf->getPages()[2]->getText() . "\n\r\n\r";
-        // $raw_text .= $pdf->getPages()[3]->getText() . "\n\r\n\r";
-        // $raw_text .= $pdf->getPages()[4]->getText() . "\n\r\n\r";
-        // $raw_text .= $pdf->getPages()[5]->getText() . "\n\r\n\r";
-        // $raw_text .= $pdf->getPages()[6]->getText() . "\n\r\n\r";
-        // $raw_text .= $pdf->getPages()[7]->getText() . "\n\r\n\r";
-        // $raw_text .= $pdf->getPages()[8]->getText() . "\n\r\n\r";
-        // var_dump($raw_text);
-
-
-
-
-
-
-        $raw_text = $pdf->getText();
-        $text_content = $raw_text;
-        // Retrieve all details from the pdf file.
-        // $details  = $pdf->getDetails();
-        // Loop over each property to extract values (string or array).
-        // $meta_accumulation = $filepath . "\n";
-        // foreach ($details as $property => $value) {
-        //     if (is_array($value)) {
-        //         $value = implode(', ', $value);
-        //     }
-        //     $meta_accumulation += $property . ' => ' . $value . "\n";
-        // }
-        // $details  = $pdf->getDetails();
-        // $meta = "Meta: \n\r";
-        // foreach ($details as $property => $value) {
-        //     if (is_array($value)) {
-        //         $value = implode(', ', $value);
-        //     }
-        //     $meta .= $property . ' => ' . $value . "\n";
-        // }
-        // $result = $meta . "\n\rTextcontent: \n\r" . str_replace("\t", '', $text_content);
-
+        $pdf = new PDF2Text();
+        $pdf->setFilename($filepath);
+        try {
+            $pdf->decodePDF();
+        } catch (Exception $e) {
+            return '';
+        }
+        $content = $pdf->output();
+        var_dump( $content);
     }
     if ($file_parts['extension'] === 'docx') {
         $content = '';
