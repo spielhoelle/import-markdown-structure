@@ -955,3 +955,29 @@ function tmy_add_tags_to_attachments()
     register_taxonomy_for_object_type('post_tag', 'attachment');
 }
 add_action('init', 'tmy_add_tags_to_attachments');
+
+function remove_item_from_menu()
+{
+    $user = wp_get_current_user();
+    if (
+        in_array('editor', (array) $user->roles)
+    ) {
+
+        remove_menu_page('index.php');                  //Dashboard
+        remove_menu_page('jetpack');                    //Jetpack* 
+        remove_menu_page('edit.php');                   //Posts
+        // remove_menu_page('upload.php');                 //Media
+        remove_menu_page('edit.php?post_type=page');    //Pages
+        remove_menu_page('edit-comments.php');          //Comments
+        remove_menu_page('themes.php');                 //Appearance
+        remove_menu_page('profile.php');                 //Profile
+        remove_menu_page('plugins.php');                //Plugins
+        remove_menu_page('users.php');                  //Users
+        remove_menu_page('tools.php');                  //Tools
+        remove_menu_page('options-general.php');        //Settings
+        remove_submenu_page('themes.php', 'theme-editor.php'); // remove submenu called theme edititor inside appearance
+        remove_submenu_page('themes.php', 'widgets.php'); // removes widgets submenu
+
+    }
+}
+add_action('admin_menu', 'remove_item_from_menu');
