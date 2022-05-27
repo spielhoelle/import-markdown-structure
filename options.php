@@ -11,6 +11,12 @@ include 'vendor/autoload.php';
 add_action('wp_enqueue_scripts', function () {
     wp_enqueue_style('styles', plugin_dir_url(__FILE__) . 'style.css', array(), '1.13', 'all');
 });
+function wpdocs_enqueue_custom_admin_style()
+{
+    wp_register_style('custom_wp_admin_css', plugin_dir_url(__FILE__) . 'admin-style.css', false, null);
+    wp_enqueue_style('custom_wp_admin_css');
+}
+add_action('admin_enqueue_scripts', 'wpdocs_enqueue_custom_admin_style');
 @ini_set('display_errors', 1);
 @ini_set('max_execution_time', '300'); //300 seconds = 5 minutes
 ini_set('memory_limit', '512M');
@@ -524,7 +530,7 @@ function tmy_add_your_meta_box2()
 {
     global $post;
     if ($post->post_mime_type === "application/pdf" || $post->post_mime_type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
-        add_meta_box('tmy_markdown_upload_pdf', 'Save PDF content to Mediacaption', 'tmy_function_of_metabox', 'attachment', 'side', 'high');
+        add_meta_box('tmy_markdown_upload_pdf', 'Save PDF content to Mediacaption', 'tmy_function_of_metabox', 'attachment', 'normal', 'high');
         add_meta_box('tmy_markdown_upload_pdf_2', 'Text send to AI', 'tmy_function_of_metabox_2', 'attachment', 'normal', 'high');
     }
 }
