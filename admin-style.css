@@ -1,3 +1,19 @@
 .wp_attachment_holder {
 	width: 200px;
+	display: none;
+}
+
+.d-flex {
+	display: flex;
+	gap: 10px;
+}
+
+.halfimg {
+	width: 100%;
+	height: auto;
+	object-fit: contain;
+}
+
+.wp_attachment_details {
+	display: none;
 }

@@ -326,29 +326,63 @@ function get_pdf_textcontent($id, $return = true)
     $file_parts = pathinfo($filepath);
     if ($file_parts['extension'] === 'pdf') {
         $config = new \Smalot\PdfParser\Config();
-        // $config->setFontSpaceLimit(-60);
+        // $pdf = new Fpdi();
+        // $pageCount = $pdf->setSourceFile($filepath);
+        $file = pathinfo($filepath, PATHINFO_FILENAME);
+
+        $pieces = explode("/", $filepath);
+        array_pop($pieces);
+        $directory = __DIR__ . '/tmp';
+
+        $newPdf = new Fpdi();
+        $pagecount = $newPdf->setSourceFile($filepath);
+        $pagesToParse = $pagecount < 100 ? $pagecount : 100;
+        for ($i = 1; $i <= $pagesToParse; $i++) {
+            $newPdf->addPage();
+            $newPdf->useTemplate($newPdf->importPage($i));
+        }
+        $newFilename = sprintf('%s/%s_%s.pdf', $directory, $file, "new");
+        $newPdf->output($newFilename, 'F');
+
+        $config->setFontSpaceLimit(-60);
         $config->setRetainImageContent(false);
-        // var_dump($config);
         $config->setDecodeMemoryLimit(100000);
         $parser = new \Smalot\PdfParser\Parser([], $config);
-        $pdf    = $parser->parseFile($filepath);
-        // $raw_text = $pdf->getPages()[0]->getText() . "\n\r\n\r";
-        // $raw_text .= $pdf->getPages()[1]->getText() . "\n\r\n\r";
-        // $raw_text .= $pdf->getPages()[2]->getText() . "\n\r\n\r";
-        // $raw_text .= $pdf->getPages()[3]->getText() . "\n\r\n\r";
-        // $raw_text .= $pdf->getPages()[4]->getText() . "\n\r\n\r";
-        // $raw_text .= $pdf->getPages()[5]->getText() . "\n\r\n\r";
-        // $raw_text .= $pdf->getPages()[6]->getText() . "\n\r\n\r";
-        // $raw_text .= $pdf->getPages()[7]->getText() . "\n\r\n\r";
-        // $raw_text .= $pdf->getPages()[8]->getText() . "\n\r\n\r";
-        // var_dump($raw_text);
+        $raw_text = '';
 
 
+        $tmp_file = $newFilename;
+        $pdf    = $parser->parseFile($tmp_file);
+        for ($i = 1; $i <= $pagesToParse; $i++) {
+            if (!is_null($pdf->getPages()[$i])) {
+                $page_text = $pdf->getPages()[$i]->getText() . "\n\r\n\r";
+                $raw_text .= $page_text;
+            }
+        }
 
+        // $biggest_page = 0;
+        // foreach ($pages as $page) {
+        //     if (strlen($page) > $biggest_page) {
+        //         $biggest_page = strlen($page);
+        //     }
+        // }
+        // foreach ($pages as $page) {
+        //     preg_match('/[A-Z]{1}[a-z]*\s[a-z]*\s[a-z]*\s[a-z]*\s[a-z]*\s[^\.]*\./', $page, $indexOfFirstSentence);
+        //     var_dump($indexOfFirstSentence);
+        //     if (
+        //         count($indexOfFirstSentence) > 0
+        //         && strpos($page, "Copyright") === false
+        //         && strpos($page, "copyright") === false
+        //     ) {
+        //         # if page has enough words
+        //         // if (strlen($page) + ($biggest_page / 10) > $biggest_page) {
+        //         // var_dump("#######################");
+        //         $raw_text .= $page;
+        //         // }
+        //     }
+        // }
 
-
-
-        $raw_text = $pdf->getText();
+        unlink($tmp_file); // delete file
         $text_content = $raw_text;
         // Retrieve all details from the pdf file.
         // $details  = $pdf->getDetails();
@@ -531,7 +565,7 @@ function tmy_add_your_meta_box2()
     global $post;
     if ($post->post_mime_type === "application/pdf" || $post->post_mime_type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
         add_meta_box('tmy_markdown_upload_pdf', 'Save PDF content to Mediacaption', 'tmy_function_of_metabox', 'attachment', 'normal', 'high');
-        add_meta_box('tmy_markdown_upload_pdf_2', 'Text send to AI', 'tmy_function_of_metabox_2', 'attachment', 'normal', 'high');
+        add_meta_box('tmy_markdown_upload_pdf_3', 'Preview of PDF & Thumbnail', 'tmy_function_of_metabox_3', 'attachment', 'normal', 'high');
     }
 }
 function tmy_save_meta_box($post_id)
@@ -544,6 +578,15 @@ function tmy_save_meta_box($post_id)
     }
 }
 add_action('edit_attachment', 'tmy_save_meta_box');
+function tmy_function_of_metabox_3($post)
+{
+?>
+    <div class="d-flex">
+        <embed src="<?php echo $post->guid; ?>" type="application/pdf" width="100%" height="auto"></embed>
+        <?php echo wp_get_attachment_image($post->ID, 'normal', false, array('class' => 'halfimg')) ?>
+    </div>
+<?php
+}
 function tmy_function_of_metabox($post)
 {
     $value = get_post_meta($post->ID, '_tmy_meta_key', true);
@@ -559,15 +602,21 @@ function tmy_function_of_metabox($post)
         <br />
         <form method=" post" enctype="multipart/form-data">
             <button type="submit" class="button button-primary button-large mb-3" value="" id="get_pdf_textcontent">Get text to `Description`<span class="spinner hidden-field"></span></button>
+
+            <h2>
+                Description
+            </h2>
+            <textarea rows="20" type='text' class="widefat urlfield" name="tmy_descritption_field" id="tmy_descritption_field"><?php echo $post->post_content; ?></textarea>
+
             <button type="submit" class="button button-primary button-large mb-3" value="" id="tmy_get_ai">Get summary to `Caption`<span class="spinner hidden-field"></span></button>
-        </form>
-    <?php endif; ?>
-<?php }
-function tmy_function_of_metabox_2($post)
-{
+
+            <?php
     $value = get_post_meta($post->ID, '_tmy_meta_ai_key', true);
     global $max_tokens;
 ?>
+            <h2>
+                Text sent to AI
+            </h2>
     <textarea rows="10" type='text' class="widefat urlfield" name="tmy_ai_field" id="tmy_ai_field"><?php echo $value ?></textarea>
 
     <?php
@@ -575,7 +624,15 @@ function tmy_function_of_metabox_2($post)
     if ((strlen($value) / 4 - $max_tokens) > 2048) {
         echo "<span style='color: red;'>" . intval(strlen($value) / 4 - $max_tokens - 2048) . " tokens too much! Please shorten your text.</span>";
     }
-}
+            ?>
+            <br />
+            <h2>
+                AI Result
+            </h2>
+            <textarea rows="10" type='text' class="widefat urlfield" name="tmy_result_field" id="tmy_result_field"><?php echo $post->post_excerpt;  ?></textarea>
+        </form>
+    <?php endif; ?>
+    <?php }
 
 add_action('admin_head', 'my_action_javascript');
 function my_action_javascript()
@@ -610,18 +667,33 @@ function my_action_javascript()
                             error.classList.add("notice");
                             error.appendChild(errorParagraph);
                             document.querySelector(".wrap").prepend(error);
+                                window.scrollTo({
+                                    top: 0,
+                                    behavior: "smooth"
+                                });
                         } else {
                             value = response;
+                            if (e.target.id === "get_pdf_textcontent") {
+                                    document.getElementById("tmy_descritption_field").value = response;
+                            } else {
+                                    document.getElementById("tmy_result_field").value = response;
+                            }
+                        }
+                        })
+                        .done(function() {
+                            console.log("second success");
                             e.target.disabled = false
                             e.target.querySelector(".spinner").classList.remove("is-active");
                             e.target.querySelector(".spinner").classList.add("hidden-field");
-                            if (e.target.id === "get_pdf_textcontent") {
-                                document.getElementById("attachment_content").value = response;
-                            } else {
-                                document.getElementById("attachment_caption").value = response;
-                            }
-                        }
+                        })
+                        .fail(function() {
+                            console.log("error");
+                        })
+                        .always(function() {
+                            console.log("finished");
                     });
+
+                    ;
                 });
             });
         </script>
@@ -987,3 +1059,13 @@ function remove_item_from_menu()
     }
 }
 add_action('admin_menu', 'remove_item_from_menu');
+add_filter('ajax_query_attachments_args', 'show_current_user_attachments', 10, 1);
+
+function show_current_user_attachments($query = array())
+{
+    $user_id = get_current_user_id();
+    if ($user_id) {
+        $query['author'] = $user_id;
+    }
+    return $query;
+}
