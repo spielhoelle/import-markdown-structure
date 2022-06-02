@@ -37,6 +37,8 @@ include(plugin_dir_path(__FILE__) . 'class.pdf2text.php');
 $max_file_download = get_option('tmy_open_ai_batch_size') ? get_option('tmy_open_ai_batch_size') : 5;
 $max_tokens = get_option('tmy_max_tokens') ? intval(get_option('tmy_max_tokens')) : 100;
 
+use setasign\Fpdi\Fpdi;
+
 // if ($pagenow === 'options-general.php' && count($_GET) > 0 && $_GET['delete'] === "true") {
 //     $allposts = get_posts(array('post_type' => 'post', 'numberposts' => -1));
 //     foreach ($allposts as $eachpost) {
@@ -598,8 +600,7 @@ function tmy_function_of_metabox($post)
         <form method="post" enctype="multipart/form-data">
             <input value="<?php echo $value ?>" type='text' class="widefat urlfield" name="tmy_field" id="tmy_field">
         </form>
-        <br />
-        <br />
+
         <form method=" post" enctype="multipart/form-data">
             <button type="submit" class="button button-primary button-large mb-3" value="" id="get_pdf_textcontent">Get text to `Description`<span class="spinner hidden-field"></span></button>
 
@@ -611,19 +612,19 @@ function tmy_function_of_metabox($post)
             <button type="submit" class="button button-primary button-large mb-3" value="" id="tmy_get_ai">Get summary to `Caption`<span class="spinner hidden-field"></span></button>
 
             <?php
-    $value = get_post_meta($post->ID, '_tmy_meta_ai_key', true);
-    global $max_tokens;
-?>
+            $value = get_post_meta($post->ID, '_tmy_meta_ai_key', true);
+            global $max_tokens;
+            ?>
             <h2>
                 Text sent to AI
             </h2>
-    <textarea rows="10" type='text' class="widefat urlfield" name="tmy_ai_field" id="tmy_ai_field"><?php echo $value ?></textarea>
+            <textarea rows="10" type='text' class="widefat urlfield" name="tmy_ai_field" id="tmy_ai_field"><?php echo $value ?></textarea>
 
-    <?php
-    echo strlen($value) . ' letters which are ~ ' . strlen($value) / 4 . ' tokens. Minus ' . $max_tokens . ' defined max_tokens = ' . intval((strlen($value) / 4 - $max_tokens)) . ' tokens that get send to OpenAI. ';
-    if ((strlen($value) / 4 - $max_tokens) > 2048) {
-        echo "<span style='color: red;'>" . intval(strlen($value) / 4 - $max_tokens - 2048) . " tokens too much! Please shorten your text.</span>";
-    }
+            <?php
+            echo strlen($value) . ' letters which are ~ ' . strlen($value) / 4 . ' tokens. Minus ' . $max_tokens . ' defined max_tokens = ' . intval((strlen($value) / 4 - $max_tokens)) . ' tokens that get send to OpenAI. ';
+            if ((strlen($value) / 4 - $max_tokens) > 2048) {
+                echo "<span style='color: red;'>" . intval(strlen($value) / 4 - $max_tokens - 2048) . " tokens too much! Please shorten your text.</span>";
+            }
             ?>
             <br />
             <h2>
@@ -659,26 +660,26 @@ function my_action_javascript()
                     }
                     // since 2.8 ajaxurl is always defined in the admin header and points to admin-ajax.php
                     $.post(ajaxurl, data, function(response) {
-                        if (response.includes("There has been a critical error on this website")) {
-                            var error = document.createElement("div");
-                            var errorParagraph = document.createElement("p");
-                            errorParagraph.innerHTML = response;
-                            error.classList.add("error");
-                            error.classList.add("notice");
-                            error.appendChild(errorParagraph);
-                            document.querySelector(".wrap").prepend(error);
+                            if (response.includes("There has been a critical error on this website")) {
+                                var error = document.createElement("div");
+                                var errorParagraph = document.createElement("p");
+                                errorParagraph.innerHTML = response;
+                                error.classList.add("error");
+                                error.classList.add("notice");
+                                error.appendChild(errorParagraph);
+                                document.querySelector(".wrap").prepend(error);
                                 window.scrollTo({
                                     top: 0,
                                     behavior: "smooth"
                                 });
-                        } else {
-                            value = response;
-                            if (e.target.id === "get_pdf_textcontent") {
-                                    document.getElementById("tmy_descritption_field").value = response;
                             } else {
+                                value = response;
+                                if (e.target.id === "get_pdf_textcontent") {
+                                    document.getElementById("tmy_descritption_field").value = response;
+                                } else {
                                     document.getElementById("tmy_result_field").value = response;
+                                }
                             }
-                        }
                         })
                         .done(function() {
                             console.log("second success");
@@ -691,7 +692,7 @@ function my_action_javascript()
                         })
                         .always(function() {
                             console.log("finished");
-                    });
+                        });
 
                     ;
                 });
@@ -899,11 +900,12 @@ function my_ajax_without_file()
                     Array.from(event2.target.parentElement.querySelectorAll('.d-none')).map(button => button.classList.remove('d-none'))
                 }
             })
+
             function render(query) {
-                ajaxurl = '<?php echo admin_url('admin-ajax.php') ?>'; 
+                ajaxurl = '<?php echo admin_url('admin-ajax.php') ?>';
                 const data = {
                     'action': 'frontend_searchaction', // your action name 
-                    'query': query 
+                    'query': query
                 };
                 const spinner = document.getElementById('tmy-search-results-spinner')
                 spinner.classList.remove('d-none')
