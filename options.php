@@ -355,7 +355,7 @@ function get_pdf_textcontent($id, $return = true)
 
         $tmp_file = $newFilename;
         $pdf    = $parser->parseFile($tmp_file);
-        for ($i = 1; $i <= $pagesToParse; $i++) {
+        for ($i = 0; $i <= $pagesToParse; $i++) {
             if (!is_null($pdf->getPages()[$i])) {
                 $page_text = $pdf->getPages()[$i]->getText() . "\n\r\n\r";
                 $raw_text .= $page_text;
@@ -578,8 +578,23 @@ function tmy_save_meta_box($post_id)
     if (array_key_exists('tmy_ai_field', $_POST)) {
         update_post_meta($post_id, '_tmy_meta_ai_key', $_POST['tmy_ai_field']);
     }
+    if (array_key_exists('tmy_ai_field', $_POST)) {
+        $data = array(
+            'ID' => $post_id,
+            'post_content' => $_POST['tmy_descritption_field']
+        );
+        // prevent infinite loop
+        remove_all_actions('edit_attachment');
+        wp_update_post($data, true);
+        if (is_wp_error($post_id)) {
+            $errors = $post_id->get_error_messages();
+            foreach ($errors as $error) {
+                echo $error;
+            }
+        }
+    }
 }
-add_action('edit_attachment', 'tmy_save_meta_box');
+add_action('edit_attachment', 'tmy_save_meta_box', 1, 2);
 function tmy_function_of_metabox_3($post)
 {
 ?>
@@ -599,9 +614,6 @@ function tmy_function_of_metabox($post)
         <label for="tmy_field">Original markdown link</label>
         <form method="post" enctype="multipart/form-data">
             <input value="<?php echo $value ?>" type='text' class="widefat urlfield" name="tmy_field" id="tmy_field">
-        </form>
-
-        <form method=" post" enctype="multipart/form-data">
             <button type="submit" class="button button-primary button-large mb-3" value="" id="get_pdf_textcontent">Get text to `Description`<span class="spinner hidden-field"></span></button>
 
             <h2>
