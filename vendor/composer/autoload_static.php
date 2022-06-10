@@ -11,6 +11,10 @@ class ComposerStaticInit4f442557851e0b14efaee0027401b3bd
     );
 
     public static $prefixLengthsPsr4 = array (
+        's' => 
+        array (
+            'setasign\\Fpdi\\' => 14,
+        ),
         'S' => 
         array (
             'Symfony\\Polyfill\\Mbstring\\' => 26,
@@ -18,6 +22,10 @@ class ComposerStaticInit4f442557851e0b14efaee0027401b3bd
     );
 
     public static $prefixDirsPsr4 = array (
+        'setasign\\Fpdi\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/setasign/fpdi/src',
+        ),
         'Symfony\\Polyfill\\Mbstring\\' => 
         array (
             0 => __DIR__ . '/..' . '/symfony/polyfill-mbstring',
@@ -32,10 +40,18 @@ class ComposerStaticInit4f442557851e0b14efaee0027401b3bd
                 0 => __DIR__ . '/..' . '/smalot/pdfparser/src',
             ),
         ),
+        'P' => 
+        array (
+            'PDFMerger' => 
+            array (
+                0 => __DIR__ . '/..' . '/myokyawhtun/pdfmerger/PDFMerger.php',
+            ),
+        ),
     );
 
     public static $classMap = array (
         'Composer\\InstalledVersions' => __DIR__ . '/..' . '/composer/InstalledVersions.php',
+        'FPDF' => __DIR__ . '/..' . '/setasign/fpdf/fpdf.php',
     );
 
     public static function getInitializer(ClassLoader $loader)

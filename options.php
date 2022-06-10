@@ -8,6 +8,7 @@ Author: Thomas Kuhnert
 Author URI: https://tmy.io
 */
 include 'vendor/autoload.php';
+include 'init.php';
 add_action('wp_enqueue_scripts', function () {
     wp_enqueue_style('styles', plugin_dir_url(__FILE__) . 'style.css', array(), '1.13', 'all');
 });
@@ -349,12 +350,14 @@ function get_pdf_textcontent($id, $return = true)
         $config->setFontSpaceLimit(-60);
         $config->setRetainImageContent(false);
         $config->setDecodeMemoryLimit(100000);
+        $config->setHorizontalOffset('');
         $parser = new \Smalot\PdfParser\Parser([], $config);
         $raw_text = '';
 
 
         $tmp_file = $newFilename;
         $pdf    = $parser->parseFile($tmp_file);
+
         for ($i = 0; $i <= $pagesToParse; $i++) {
             if (!is_null($pdf->getPages()[$i])) {
                 $page_text = $pdf->getPages()[$i]->getText() . "\n\r\n\r";
@@ -613,16 +616,17 @@ function tmy_function_of_metabox($post)
     <?php else : ?>
         <label for="tmy_field">Original markdown link</label>
         <form method="post" enctype="multipart/form-data">
-            <input value="<?php echo $value ?>" type='text' class="widefat urlfield" name="tmy_field" id="tmy_field">
-            <button type="submit" class="button button-primary button-large mb-3" value="" id="get_pdf_textcontent">Get text to `Description`<span class="spinner hidden-field"></span></button>
-
+            <input value="<?php echo $value ?>" type='text' class="widefat urlfield" name="tmy_field" id="tmy_field" disabled="disabled">
+            
             <h2>
                 Description
             </h2>
             <textarea rows="20" type='text' class="widefat urlfield" name="tmy_descritption_field" id="tmy_descritption_field"><?php echo $post->post_content; ?></textarea>
-
-            <button type="submit" class="button button-primary button-large mb-3" value="" id="tmy_get_ai">Get summary to `Caption`<span class="spinner hidden-field"></span></button>
-
+            <br/>
+            <br/>
+            <button type="submit" class="button button-primary button-large mb-3" value="" id="get_pdf_textcontent">Overwrite with text-scan<span class="spinner hidden-field"></span></button>
+            
+            
             <?php
             $value = get_post_meta($post->ID, '_tmy_meta_ai_key', true);
             global $max_tokens;
@@ -631,7 +635,12 @@ function tmy_function_of_metabox($post)
                 Text sent to AI
             </h2>
             <textarea rows="10" type='text' class="widefat urlfield" name="tmy_ai_field" id="tmy_ai_field"><?php echo $value ?></textarea>
-
+            <br/>
+            <br/>
+            <button type="submit" class="button button-primary button-large mb-3" value="" id="tmy_get_ai">Get summary to `Caption`<span class="spinner hidden-field"></span></button>
+            <br/>
+            <br/>
+            
             <?php
             echo strlen($value) . ' letters which are ~ ' . strlen($value) / 4 . ' tokens. Minus ' . $max_tokens . ' defined max_tokens = ' . intval((strlen($value) / 4 - $max_tokens)) . ' tokens that get send to OpenAI. ';
             if ((strlen($value) / 4 - $max_tokens) > 2048) {
@@ -714,88 +723,6 @@ function my_action_javascript()
     }
 }
 add_action('wp_ajax_tmy_ajax_handler', 'tmy_markdown_handle_post');
-/*
-* Creating a function to create our CPT
-*/
-
-function custom_post_type()
-{
-
-    // Set UI labels for Custom Post Type
-    $labels = array(
-        'name'                => _x('Archives', 'Post Type General Name', 'twentytwenty'),
-        'singular_name'       => _x('Archive', 'Post Type Singular Name', 'twentytwenty'),
-        'menu_name'           => __('Archives', 'twentytwenty'),
-        'parent_item_colon'   => __('Parent Archive', 'twentytwenty'),
-        'all_items'           => __('All Archives', 'twentytwenty'),
-        'view_item'           => __('View Archive', 'twentytwenty'),
-        'add_new_item'        => __('Add New Archive', 'twentytwenty'),
-        'add_new'             => __('Add New', 'twentytwenty'),
-        'edit_item'           => __('Edit Archive', 'twentytwenty'),
-        'update_item'         => __('Update Archive', 'twentytwenty'),
-        'search_items'        => __('Search Archive', 'twentytwenty'),
-        'not_found'           => __('Not Found', 'twentytwenty'),
-        'not_found_in_trash'  => __('Not found in Trash', 'twentytwenty'),
-    );
-
-    // Set other options for Custom Post Type
-
-    $args = array(
-        'label'               => __('archive', 'twentytwenty'),
-        'description'         => __('Archive news and reviews', 'twentytwenty'),
-        'labels'              => $labels,
-        'rewrite' => array(
-            'slug'       => 'archive',
-            'with_front' => false,
-        ),
-        // Features this CPT supports in Post Editor
-        'supports'            => array('title', 'editor', 'excerpt', 'author', 'thumbnail', 'comments', 'revisions', 'custom-fields', 'page-attributes'),
-        // You can associate this CPT with a taxonomy or custom taxonomy. 
-        'taxonomies'          => array('archive-category'),
-        /* A hierarchical CPT is like Pages and can have
-        * Parent and child items. A non-hierarchical CPT
-        * is like Posts.
-        */
-        'hierarchical'        => true,
-        'public'              => true,
-        'show_ui'             => true,
-        'show_in_menu'        => true,
-        'show_in_nav_menus'   => true,
-        'show_in_admin_bar'   => true,
-        'menu_position'       => 5,
-        'can_export'          => true,
-        'has_archive'         => true,
-        'exclude_from_search' => false,
-        'publicly_queryable'  => true,
-        'capability_type'     => 'post',
-        'show_in_rest' => true,
-
-    );
-
-    // Registering your Custom Post Type
-    register_post_type('archive', $args);
-}
-function tr_create_my_taxonomy()
-{
-
-    register_taxonomy(
-        'archive-category',
-        'archive',
-        array(
-            'label' => __('Archive category'),
-            'rewrite' => array('slug' => 'Archive category'),
-            'hierarchical' => true,
-        )
-    );
-}
-add_action('init', 'tr_create_my_taxonomy');
-/* Hook into the 'init' action so that the function
-* Containing our post type registration is not 
-* unnecessarily executed. 
-*/
-
-add_action('init', 'custom_post_type', 0);
-
 function test_convert($id)
 {
     $allposts = get_posts(array('post_type' => 'archive', 'numberposts' => -1));
