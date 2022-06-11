@@ -187,10 +187,11 @@ function get_pdf_textcontent($id, $return = true)
     $result = str_replace("\t", '', trim($text_content));
     // $result = substr($raw_text, 0 , 1000) . "\n\n" . $result;
     $postid = $post->ID;
+    update_post_meta($postid, '_tmy_meta_custom_field_send_to_ai', $result);
     $updated_post = array(
         'ID' => $postid,
         'post_content' => $result,
-        // 'post_excerpt' => "replaced by AI summary"
+        // 'post_excerpt' =>  $result
     );
     $err = wp_update_post($updated_post, true, true);
     file_put_contents('php://stdout', 'PDF content saved ' . time(), FILE_APPEND);
@@ -207,10 +208,9 @@ function get_pdf_textcontent($id, $return = true)
 function tmy_send_to_ai($id, $return = true)
 {
     global $max_tokens;
-    $value = get_post_meta($id, '_tmy_meta_ai_key', true);
+    $value = get_post_meta($id, '_tmy_meta_custom_field_send_to_ai', true);
     $post = get_post($id);
     
-    return "FUCK";
     // $trimmed = trim(preg_replace('/\s\s+/', ' ', $value));
     // $trimmed = preg_replace('/\d{1,2}\s{1}/', "", $trimmed);
     // preg_match('/(?!.*copyright)[A-Z]{1}[a-z]*\s\w*,?\s\w*,?\s\w*,?\s\w*,?\s[^\.]*\.\s/', $trimmed, $indexOfFirstSentence, PREG_OFFSET_CAPTURE);

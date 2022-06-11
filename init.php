@@ -97,7 +97,7 @@ function tmy_save_meta_box($post_id)
         update_post_meta($post_id, '_tmy_meta_key', $_POST['tmy_field']);
     }
     if (array_key_exists('tmy_ai_field', $_POST)) {
-        update_post_meta($post_id, '_tmy_meta_ai_key', $_POST['tmy_ai_field']);
+        update_post_meta($post_id, '_tmy_meta_custom_field_send_to_ai', $_POST['tmy_ai_field']);
     }
     if (array_key_exists('tmy_ai_field', $_POST)) {
         $data = array(
@@ -146,7 +146,7 @@ function tmy_function_of_metabox($post)
 
 
             <?php
-            $value = get_post_meta($post->ID, '_tmy_meta_ai_key', true);
+            $value = get_post_meta($post->ID, '_tmy_meta_custom_field_send_to_ai', true);
             global $max_tokens;
             ?>
             <h2>
@@ -215,6 +215,7 @@ function my_action_javascript()
                                 value = response;
                                 if (e.target.id === "get_pdf_textcontent") {
                                     document.getElementById("tmy_descritption_field").value = response;
+                                    document.getElementById("tmy_ai_field").value = response;
                                 } else {
                                     document.getElementById("tmy_result_field").value = response;
                                 }
@@ -237,7 +238,7 @@ function my_action_javascript()
                 });
             });
         </script>
-<?php
+    <?php
     }
 }
 
@@ -746,9 +747,9 @@ function tmy_markdown_init()
                         'post_excerpt' => preg_match('/^https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&\/\/=]*)$/', $post->post_excerpt) ? "" : $post->post_excerpt,
                         'post_content' => $post->post_content === "placeholder" ? "" : $post->post_content
                     );
-                    $value = get_post_meta($post->ID, '_tmy_meta_ai_key', true);
+                    $value = get_post_meta($post->ID, '_tmy_meta_custom_field_send_to_ai', true);
                     if ($value === "") {
-                        update_post_meta($post->ID, '_tmy_meta_ai_key', $post->post_content);
+                        update_post_meta($post->ID, '_tmy_meta_custom_field_send_to_ai', $post->post_content);
                     }
                     wp_update_post($attachment);
                 }
