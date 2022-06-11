@@ -9,6 +9,71 @@ Author URI: https://tmy.io
 */
 include 'vendor/autoload.php';
 include 'init.php';
+function download_files_from_content_links()
+{
+    global $max_file_download;
+    if (!function_exists('post_exists')) {
+        require_once(ABSPATH . 'wp-admin/includes/post.php');
+    }
+    if (!function_exists('wp_get_current_user')) {
+        include(ABSPATH . "wp-includes/pluggable.php");
+    }
+    $allposts = get_posts(array('post_type' => 'archive', 'numberposts' => -1));
+    $i = 0;
+    foreach ($allposts as $eachpost) {
+        $post_content_links = wp_extract_urls($eachpost->post_content);
+        if (count($post_content_links) > 0) {
+            foreach ($post_content_links as $post_content_link) {
+                $basename = basename($post_content_link);
+                $basefilename = urldecode(preg_replace('/\?.*/', '', $basename));
+                $filename = preg_replace('/#[^?|^&]*/', '', $basefilename);
+                $file_parts = pathinfo($filename);
+                if (
+                    !post_exists($filename)
+                    && $filename !== 'edit'
+                    && $filename !== 'view'
+                    // && isset($file_parts["extension"]) && $file_parts['extension'] === 'docx'
+                ) {
+                    if ($i < $max_file_download) {
+                        $query = parse_url($post_content_link, PHP_URL_QUERY);
+                        if ($query) {
+                            $post_content_link .= '&raw=1&dl=1';
+                        } else {
+                            $post_content_link .= '?raw=1&dl=1';
+                        }
+                        $post_content_link = str_replace('dl=0', '', $post_content_link);
+                        $contents = file_get_contents($post_content_link, false, stream_context_create(['http' => ['ignore_errors' => true]]));
+                        // var_dump($http_response_header);
+                        $post_id = $eachpost->ID;
+                        $filetype = wp_check_filetype($filename, null);
+                        $wp_upload_dir = wp_upload_dir();
+
+                        $new_file_path = $wp_upload_dir['path'] . '/' . $filename;
+                        if (!file_exists($filename)) {
+                            file_put_contents($new_file_path, $contents);
+                        }
+                        $attachment = array(
+                            'guid'           => $new_file_path,
+                            'post_mime_type' => $filetype['type'],
+                            'post_title'     => $filename,
+                            'post_status'    => 'inherit',
+                            'post_content'   => "",
+                        );
+                        $attachment_id = wp_insert_attachment($attachment, $new_file_path, $post_id);
+                        update_post_meta($post_id, '_tmy_meta_key', $post_content_link);
+                        require_once(ABSPATH . 'wp-admin/includes/image.php');
+                        $attach_data = wp_generate_attachment_metadata($attachment_id, $new_file_path);
+                        wp_update_attachment_metadata($attachment_id, $attach_data);
+                        $i++;
+                    }
+                } else {
+                    // echo "\n\rPOST is already existing";
+                }
+            }
+        }
+    }
+}
+
 function get_pdf_textcontent($id, $return = true)
 {
     $post = get_post($id);
@@ -138,71 +203,6 @@ function get_pdf_textcontent($id, $return = true)
         }
     }
 }
-function download_files_from_content_links()
-{
-    global $max_file_download;
-    if (!function_exists('post_exists')) {
-        require_once(ABSPATH . 'wp-admin/includes/post.php');
-    }
-    if (!function_exists('wp_get_current_user')) {
-        include(ABSPATH . "wp-includes/pluggable.php");
-    }
-    $allposts = get_posts(array('post_type' => 'archive', 'numberposts' => -1));
-    $i = 0;
-    foreach ($allposts as $eachpost) {
-        $post_content_links = wp_extract_urls($eachpost->post_content);
-        if (count($post_content_links) > 0) {
-            foreach ($post_content_links as $post_content_link) {
-                $basename = basename($post_content_link);
-                $basefilename = urldecode(preg_replace('/\?.*/', '', $basename));
-                $filename = preg_replace('/#[^?|^&]*/', '', $basefilename);
-                $file_parts = pathinfo($filename);
-                if (
-                    !post_exists($filename)
-                    && $filename !== 'edit'
-                    && $filename !== 'view'
-                    // && isset($file_parts["extension"]) && $file_parts['extension'] === 'docx'
-                ) {
-                    if ($i < $max_file_download) {
-                        $query = parse_url($post_content_link, PHP_URL_QUERY);
-                        if ($query) {
-                            $post_content_link .= '&raw=1&dl=1';
-                        } else {
-                            $post_content_link .= '?raw=1&dl=1';
-                        }
-                        $post_content_link = str_replace('dl=0', '', $post_content_link);
-                        $contents = file_get_contents($post_content_link, false, stream_context_create(['http' => ['ignore_errors' => true]]));
-                        // var_dump($http_response_header);
-                        $post_id = $eachpost->ID;
-                        $filetype = wp_check_filetype($filename, null);
-                        $wp_upload_dir = wp_upload_dir();
-
-                        $new_file_path = $wp_upload_dir['path'] . '/' . $filename;
-                        if (!file_exists($filename)) {
-                            file_put_contents($new_file_path, $contents);
-                        }
-                        $attachment = array(
-                            'guid'           => $new_file_path,
-                            'post_mime_type' => $filetype['type'],
-                            'post_title'     => $filename,
-                            'post_status'    => 'inherit',
-                            'post_content'   => "",
-                        );
-                        $attachment_id = wp_insert_attachment($attachment, $new_file_path, $post_id);
-                        update_post_meta($post_id, '_tmy_meta_key', $post_content_link);
-                        require_once(ABSPATH . 'wp-admin/includes/image.php');
-                        $attach_data = wp_generate_attachment_metadata($attachment_id, $new_file_path);
-                        wp_update_attachment_metadata($attachment_id, $attach_data);
-                        $i++;
-                    }
-                } else {
-                    // echo "\n\rPOST is already existing";
-                }
-            }
-        }
-    }
-}
-
 function tmy_send_to_ai($id, $return = true)
 {
     global $max_tokens;
