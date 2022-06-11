@@ -651,8 +651,6 @@ include(plugin_dir_path(__FILE__) . 'class.pdf2text.php');
 $max_file_download = get_option('tmy_open_ai_batch_size') ? get_option('tmy_open_ai_batch_size') : 5;
 $max_tokens = get_option('tmy_max_tokens') ? intval(get_option('tmy_max_tokens')) : 100;
 
-use setasign\Fpdi\Fpdi;
-
 // if ($pagenow === 'options-general.php' && count($_GET) > 0 && $_GET['delete'] === "true") {
 //     $allposts = get_posts(array('post_type' => 'post', 'numberposts' => -1));
 //     foreach ($allposts as $eachpost) {

@@ -9,6 +9,7 @@ Author URI: https://tmy.io
 */
 include 'vendor/autoload.php';
 include 'init.php';
+use setasign\Fpdi\Fpdi;
 function download_files_from_content_links()
 {
     global $max_file_download;
