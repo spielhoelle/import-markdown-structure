@@ -1,5 +1,14 @@
 #tmy-search-results {
 	margin-top: 20px;
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	background-color: var(--wp--preset--color--background);
+}
+
+code {
+	background-color: var(--wp--preset--color--luminous-vivid-amber);
 }
 
 .tmy-post-div {
@@ -16,6 +25,15 @@
 	position: relative;
 }
 
+.tmy-form {
+	display: flex;
+	justify-content: center;
+}
+
+#tmy-search-input {
+	padding: 10px;
+}
+
 #tmy-search-results-spinner {
 	width: 4rem;
 	height: 4rem;
@@ -23,10 +41,21 @@
 	justify-content: center;
 	align-items: center;
 	position: absolute;
-	top: 0;
-	right: 0;
+	top: 20px;
+	right: 47%;
 	font-size: 4rem;
 	animation: spin 1s linear infinite;
+	margin-top: 10px;
+	z-index: 1;
+}
+
+#tmy-search-results-spinner span {
+	padding-bottom: 9px;
+}
+
+
+.text-center {
+	text-align: center;
 }
 
 @keyframes spin {

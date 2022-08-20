@@ -427,90 +427,23 @@ add_action('manage_pages_custom_column', function ($column_key, $post_id) {
 // [import_markdown_structure_search]
 function import_markdown_structure_search_func($atts)
 {
-    $html = '<form class="position-relative"><input type="text" id="tmy-search-input" placeholder="Search..."><div id="tmy-search-results-spinner" class="d-none"><span>+</span></div></form><div id="tmy-search-results"></div>';
+    $html = '<form class="position-relative tmy-form"><input type="text" id="tmy-search-input" placeholder="Search..."><div id="tmy-search-results-spinner" class="d-none"><span>+</span></div></form><div class="position-relative"><div id="tmy-search-results"></div></div>';
     return $html;
 }
 add_shortcode('import_markdown_structure_search', 'import_markdown_structure_search_func');
 
-
-add_action('wp_footer', 'my_ajax_without_file');
-
-function my_ajax_without_file()
-{ ?>
-    <script type="text/javascript">
-        function debounce(func) {
-            var timer;
-            return function(event) {
-                if (timer) clearTimeout(timer);
-                timer = setTimeout(func, 200, event);
-            };
-        }
-        const urlParams = new URLSearchParams(window.location.search);
-        jQuery(document).ready(function($) {
-            document.addEventListener('click', (event2) => {
-                if (event2.target.classList.contains('tmy_show_all_button')) {
-                    Array.from(event2.target.parentElement.querySelectorAll('.d-none')).map(button => button.classList.remove('d-none'))
-                }
-            })
-
-            function render(query) {
-                ajaxurl = '<?php echo admin_url('admin-ajax.php') ?>';
-                const data = {
-                    'action': 'frontend_searchaction', // your action name 
-                    'query': query
-                };
-                const spinner = document.getElementById('tmy-search-results-spinner')
-                spinner.classList.remove('d-none')
-                jQuery.ajax({
-                    url: ajaxurl,
-                    type: 'POST',
-                    data: data,
-                    success: function(resp) {
-                        let response = JSON.parse(resp);
-                        const resultsDiv = document.createElement('div')
-                        if (response.posts.length === 0) {
-                            resultsDiv.innerHTML = "No results found"
-                            spinner.classList.add('d-none')
-                        } else {
-                            response.posts.map(post => {
-                                const link = document.createElement('a');
-                                const postDiv = document.createElement('div');
-                                postDiv.classList.add("tmy-post-div")
-                                const contentDiv = document.createElement('div');
-                                link.innerHTML = post.post_title;
-                                link.href = post.post_link;
-                                const regEx = new RegExp(query, "ig");
-                                contentDiv.innerHTML = `<b>Content:</b><br/> ${post.post_content.replace(regEx, `<code style="background-color: yellow;">${query}</code>`)}`;
-                                postDiv.appendChild(link)
-                                if (post.post_excerpt !== "") {
-                                    const excerptDiv = document.createElement('div');
-                                    excerptDiv.innerHTML = `<b>Excerpt:</b><br/> ${post.post_excerpt.toLowerCase().includes(query.toLowerCase()) ? post.post_excerpt.replace(regEx, `<code style="background-color: yellow;">${query}</code>`) : post.post_excerpt }`;
-                                    postDiv.appendChild(excerptDiv)
-                                }
-                                postDiv.appendChild(contentDiv)
-                                resultsDiv.appendChild(postDiv)
-                            })
-                            spinner.classList.add('d-none')
-                        }
-                        document.getElementById('tmy-search-results').innerHTML = `Matches: ${ response.matches} <br/><br/>${resultsDiv.innerHTML}`
-                    }
-                })
-            }
-            $('#tmy-search-input').on('input', function(e) {
-                e.preventDefault()
-                urlParams.set('query', e.target.value);
-                window.history.pushState({}, "search", "?" + urlParams.toString());
-                debounce(render(e.target.value))
-            });
-            if (urlParams.get('query')) {
-                document.getElementById('tmy-search-input').value = urlParams.get('query')
-                debounce(render(urlParams.get('query')))
-            }
-        })
-    </script>
-<?php
+function toshodex_search_scripts()
+{
+    wp_enqueue_script('toshodex_search_scripts', plugin_dir_url(__FILE__) . '/index.js', '', '1.1.0', true);
+    wp_localize_script('toshodex_search_scripts', 'toshodex_search_ajax', array(
+        'ajax_url' => admin_url('admin-ajax.php'),
+        'nonce' => wp_create_nonce('wp-pageviews-nonce'),
+        'is_user_logged_in' => is_user_logged_in(),
+        'is_single' => is_single()
+    ));
 }
 
+add_action('wp_enqueue_scripts', 'toshodex_search_scripts');
 add_action("wp_ajax_frontend_searchaction", "frontend_searchaction");
 add_action("wp_ajax_nopriv_frontend_searchaction", "frontend_searchaction");
 function utf8ize($d)
@@ -531,7 +464,7 @@ function frontend_searchaction()
     $result = $wpdb->get_results("SELECT * FROM wp_posts WHERE (post_type = LOWER('archive') OR post_type = LOWER('attachment')) AND (post_content LIKE '%$query%' OR post_excerpt LIKE '%$query%') ");
     $posts = array();
     $matches = 0;
-    if ($result) {
+    if ($result && $_POST['query'] !== "") {
         foreach ($result as $queriedPost) {
             $html = $queriedPost->post_content;
             $lastPos = 0;
@@ -765,7 +698,7 @@ function tmy_markdown_init()
     $media_with_just_link_excerpt = array_filter($parsable_docs, function ($attachment) {
         return $attachment->post_content !== "" && $attachment->post_excerpt === "";
     });
-?>
+    ?>
     <h1>Import markdown file to archive post_type hierarchy</h1>
 
     <!-- Form to handle the upload - The enctype value here is very important -->
